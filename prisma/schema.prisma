@@ -7,9 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Instructor-only for now; kept as an enum so further roles can be added by migration.
 enum Role {
   INSTRUCTOR
-  STUDENT
 }
 
 enum QuestionSource {
@@ -33,7 +33,7 @@ model User {
   email        String   @unique
   passwordHash String
   name         String
-  role         Role     @default(STUDENT)
+  role         Role     @default(INSTRUCTOR)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

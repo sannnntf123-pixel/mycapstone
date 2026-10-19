@@ -4,8 +4,7 @@ export const registerSchema = z.object({
   email: z.string().email().toLowerCase(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().trim().min(1),
-  role: z.enum(["INSTRUCTOR", "STUDENT"]).default("STUDENT"),
-  inviteCode: z.string().optional(),
+  inviteCode: z.string().min(1, "An instructor invite code is required"),
 });
 
 export const loginSchema = z.object({

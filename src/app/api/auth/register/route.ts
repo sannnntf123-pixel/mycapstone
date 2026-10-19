@@ -7,7 +7,9 @@ import { registerSchema } from "@/lib/validation";
 export const POST = handle(async (req: Request) => {
   const input = registerSchema.parse(await req.json());
 
-  if (input.role === "INSTRUCTOR" && input.inviteCode !== process.env.INSTRUCTOR_INVITE_CODE) {
+  // Fails closed: if INSTRUCTOR_INVITE_CODE is unset, nobody can register.
+  const expected = process.env.INSTRUCTOR_INVITE_CODE;
+  if (!expected || input.inviteCode !== expected) {
     throw forbidden("A valid instructor invite code is required");
   }
 
@@ -18,7 +20,7 @@ export const POST = handle(async (req: Request) => {
     data: {
       email: input.email,
       name: input.name,
-      role: input.role,
+      role: "INSTRUCTOR",
       passwordHash: await hashPassword(input.password),
     },
     select: { id: true, email: true, name: true, role: true },

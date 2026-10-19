@@ -7,7 +7,6 @@ import type { createQuestionSchema, listQuestionsQuery } from "@/lib/validation"
 
 // The single source of truth for "which questions may this instructor see":
 // their own questions (any status/visibility) plus anything shared.
-// Students get no access at all; routes reject them before reaching here.
 export function visibleToInstructor(userId: string): Prisma.QuestionWhereInput {
   return { OR: [{ createdById: userId }, { visibility: "SHARED" }] };
 }

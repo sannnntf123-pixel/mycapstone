@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole, requireUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { conflict, handle, notFound } from "@/lib/errors";
 import { createChapterSchema } from "@/lib/validation";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export const GET = handle(async (req: Request, { params }: Ctx) => {
-  await requireUser(req);
+  await requireRole(req, "INSTRUCTOR");
   const { id } = await params;
   const curriculum = await prisma.curriculum.findUnique({
     where: { id },

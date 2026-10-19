@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole, requireUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { conflict, handle } from "@/lib/errors";
 import { createCurriculumSchema } from "@/lib/validation";
 
-// Curricula and chapters are not secret, so any logged-in user (including students) can list them.
 export const GET = handle(async (req: Request) => {
-  await requireUser(req);
+  await requireRole(req, "INSTRUCTOR");
   const curricula = await prisma.curriculum.findMany({
     orderBy: { name: "asc" },
     include: { chapters: { orderBy: { orderIndex: "asc" } } },
