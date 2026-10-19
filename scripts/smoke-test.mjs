@@ -1,20 +1,37 @@
 // End-to-end check of the running API. Usage: npm run dev, then `npm run smoke`.
-// Creates fresh users on every run, so it is safe to repeat.
+// Creates fresh users on every run. Note: the final section deliberately trips the
+// per-IP invite-code rate limit, so registration from this machine stays blocked for
+// RATE_LIMIT_WINDOW_MINUTES — restart the dev server before running the script again.
+import { execFileSync } from "node:child_process";
+
 const BASE = process.env.API_URL ?? "http://localhost:3100/api";
 const INVITE = process.env.INSTRUCTOR_INVITE_CODE ?? "capstone-instructor";
+const MAX_ATTEMPTS = Number(process.env.RATE_LIMIT_MAX_ATTEMPTS ?? 5);
+const DB_CONTAINER = process.env.DB_CONTAINER ?? "my-capstone-db-1";
 const run = Date.now();
 let failures = 0;
 
-async function call(method, path, { token, body } = {}) {
+async function call(method, path, { token, body, rawBody, headers = {} } = {}) {
   const res = await fetch(BASE + path, {
     method,
     headers: {
       "content-type": "application/json",
       ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...headers,
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: rawBody ?? (body ? JSON.stringify(body) : undefined),
   });
-  return { status: res.status, data: await res.json() };
+  return { status: res.status, headers: res.headers, data: await res.json() };
+}
+
+// Runs SQL directly in the database container, bypassing the API. Returns the error text or "".
+function sqlError(sql) {
+  try {
+    execFileSync("docker", ["exec", DB_CONTAINER, "psql", "-U", "capstone", "-d", "question_bank", "-v", "ON_ERROR_STOP=1", "-c", sql], { stdio: "pipe" });
+    return "";
+  } catch (e) {
+    return String(e.stderr);
+  }
 }
 
 function check(label, cond, extra) {
@@ -101,6 +118,59 @@ const bankOverride = await call("GET", `/questions/bank?curriculumId=${cur.data.
 check("bank ignores status override", bankOverride.data.items.every((q) => q.status === "APPROVED"));
 const filt = await call("GET", `/questions?curriculumId=${cur.data.id}&status=REJECTED&difficulty=3`, { token: A.token });
 check("filter by status + difficulty", filt.data.items.length === 1 && filt.data.items[0].id === q1.id);
+
+// --- step 3: malformed input ---
+check("malformed JSON -> 400", (await call("POST", "/questions", { token: A.token, rawBody: "{not json" })).status === 400);
+check("empty body on create -> 400", (await call("POST", "/curricula", { token: A.token, rawBody: "" })).status === 400);
+check("malformed JSON on reject -> 400", (await call("POST", `/questions/${q2.id}/reject`, { token: A.token, rawBody: "{oops" })).status === 400);
+check("password over 72 bytes -> 400", (await reg("longpw", { password: "x".repeat(73) })).status === 400);
+
+// --- step 3: database-level rules (direct SQL, bypassing the API) ---
+check("DB rejects difficulty 9", sqlError(`UPDATE questions SET difficulty = 9 WHERE id = '${q1.id}'`).includes("questions_difficulty_range"));
+check("DB rejects estimatedTimeMinutes 0", sqlError(`UPDATE questions SET "estimatedTimeMinutes" = 0 WHERE id = '${q1.id}'`).includes("questions_estimated_time_range"));
+check("DB rejects APPROVED without approvedAt", sqlError(`UPDATE questions SET status = 'APPROVED' WHERE id = '${q1.id}'`).includes("questions_approval_consistency"));
+check("DB rejects approvedAt on a non-approved question", sqlError(`UPDATE questions SET "approvedAt" = now() WHERE id = '${q1.id}'`).includes("questions_approval_consistency"));
+check("DB rejects chapter from another curriculum", sqlError(`UPDATE questions SET "curriculumId" = '${other.data.id}' WHERE id = '${q1.id}'`).includes("questions_chapterId_curriculumId_fkey"));
+check("DB rejects chapter orderIndex 0", sqlError(`UPDATE chapters SET "orderIndex" = 0 WHERE id = '${ch.data.id}'`).includes("chapters_order_index_positive"));
+
+// --- step 3: login rate limiting ---
+const C = (await reg("carol")).data;
+const loginAs = (email, password, headers) => call("POST", "/auth/login", { body: { email, password }, headers });
+const carol = `carol-${run}@test.com`;
+const wrong = [];
+for (let i = 0; i < MAX_ATTEMPTS; i++) wrong.push((await loginAs(carol, "wrong-password")).status);
+check(`${MAX_ATTEMPTS} wrong passwords -> 401 each`, wrong.every((s) => s === 401), wrong);
+const locked = await loginAs(carol, "wrong-password");
+check(`attempt ${MAX_ATTEMPTS + 1} -> 429 with Retry-After`, locked.status === 429 && Number(locked.headers.get("retry-after")) > 0, locked.status);
+check("while locked, even the correct password -> 429", (await loginAs(carol, "password123")).status === 429);
+check("other accounts are not affected by the lock", (await loginAs(`alice-${run}@test.com`, "password123")).status === 200);
+
+await reg("dave");
+const dave = `dave-${run}@test.com`;
+for (let i = 0; i < MAX_ATTEMPTS; i++) await loginAs(dave, "wrong-password", { "x-forwarded-for": `10.0.0.${i + 1}` });
+check("spoofed X-Forwarded-For does not bypass the limit", (await loginAs(dave, "wrong-password", { "x-forwarded-for": "10.9.9.9" })).status === 429);
+
+await reg("erin");
+const erin = `erin-${run}@test.com`;
+for (let i = 0; i < MAX_ATTEMPTS - 1; i++) await loginAs(erin, "wrong-password");
+await loginAs(erin, "password123");
+const afterReset = [];
+for (let i = 0; i < MAX_ATTEMPTS - 1; i++) afterReset.push((await loginAs(erin, "wrong-password")).status);
+check("successful login resets the failure counter", afterReset.every((s) => s === 401), afterReset);
+check("C registered for rate-limit tests", Boolean(C.token));
+
+// --- step 3: invite-code brute force (runs last: it locks registration from this IP) ---
+// One wrong code was already sent by the "wrong invite code -> 403" check at the top.
+const codeStatuses = [];
+for (let i = 1; i <= MAX_ATTEMPTS; i++) {
+  const res = await call("POST", "/auth/register", {
+    body: { email: `guess${i}-${run}@test.com`, password: "password123", name: "guess", inviteCode: `guess-${i}` },
+    headers: { "x-forwarded-for": `10.1.0.${i}` }, // a fresh fake IP each time must not help
+  });
+  codeStatuses.push(res.status);
+}
+check(`wrong invite codes (spoofed IPs): ${MAX_ATTEMPTS} x 403 in total, then 429`, codeStatuses.slice(0, -1).every((s) => s === 403) && codeStatuses.at(-1) === 429, codeStatuses);
+check("while locked, even the correct invite code -> 429", (await reg("late")).status === 429);
 
 console.log(failures ? `\n${failures} FAILED` : "\nALL PASSED");
 process.exit(failures ? 1 : 0);

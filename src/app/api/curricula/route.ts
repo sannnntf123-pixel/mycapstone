@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
-import { conflict, handle } from "@/lib/errors";
+import { conflict, handle, readJson } from "@/lib/errors";
 import { createCurriculumSchema } from "@/lib/validation";
 
 export const GET = handle(async (req: Request) => {
@@ -15,7 +15,7 @@ export const GET = handle(async (req: Request) => {
 
 export const POST = handle(async (req: Request) => {
   const user = await requireRole(req, "INSTRUCTOR");
-  const input = createCurriculumSchema.parse(await req.json());
+  const input = createCurriculumSchema.parse(await readJson(req));
 
   const exists = await prisma.curriculum.findUnique({ where: { name: input.name } });
   if (exists) throw conflict("A curriculum with this name already exists");

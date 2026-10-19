@@ -1,15 +1,19 @@
 import { z } from "zod";
 
 export const registerSchema = z.object({
-  email: z.string().email().toLowerCase(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  name: z.string().trim().min(1),
+  email: z.string().email().max(254).toLowerCase(),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    // bcrypt silently ignores everything after 72 bytes, so longer passwords would give false security.
+    .refine((p) => new TextEncoder().encode(p).length <= 72, "Password must be at most 72 bytes"),
+  name: z.string().trim().min(1).max(100),
   inviteCode: z.string().min(1, "An instructor invite code is required"),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email().toLowerCase(),
-  password: z.string().min(1),
+  email: z.string().email().max(254).toLowerCase(),
+  password: z.string().min(1).max(200),
 });
 
 export const createCurriculumSchema = z.object({

@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, signToken } from "@/lib/auth";
-import { conflict, forbidden, handle } from "@/lib/errors";
+import { getEnv } from "@/lib/env";
+import { conflict, forbidden, handle, readJson } from "@/lib/errors";
+import { assertNotLimited, clientIp, recordFailure } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
 
 export const POST = handle(async (req: Request) => {
-  const input = registerSchema.parse(await req.json());
+  const input = registerSchema.parse(await readJson(req));
 
-  // Fails closed: if INSTRUCTOR_INVITE_CODE is unset, nobody can register.
-  const expected = process.env.INSTRUCTOR_INVITE_CODE;
-  if (!expected || input.inviteCode !== expected) {
+  // Wrong invite codes are counted per IP so the code can't be brute-forced.
+  const limitKey = `register:${clientIp(req)}`;
+  assertNotLimited(limitKey);
+  if (input.inviteCode !== getEnv().INSTRUCTOR_INVITE_CODE) {
+    recordFailure(limitKey);
     throw forbidden("A valid instructor invite code is required");
   }
 

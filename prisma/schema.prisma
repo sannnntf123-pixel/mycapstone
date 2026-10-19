@@ -73,9 +73,13 @@ model Chapter {
 
   @@unique([curriculumId, orderIndex])
   @@unique([curriculumId, title])
+  // Target of the questions(chapterId, curriculumId) foreign key.
+  @@unique([id, curriculumId])
   @@map("chapters")
 }
 
+// Range and consistency rules are also enforced by CHECK constraints in
+// migration 20261019120000_db_integrity_checks (Prisma's schema language can't express them).
 model Question {
   id                   String         @id @default(cuid())
   content              String
@@ -99,7 +103,8 @@ model Question {
   updatedAt            DateTime       @updatedAt
 
   curriculum Curriculum @relation(fields: [curriculumId], references: [id])
-  chapter    Chapter    @relation(fields: [chapterId], references: [id])
+  // Composite key: the database itself guarantees the chapter belongs to the question's curriculum.
+  chapter    Chapter    @relation(fields: [chapterId, curriculumId], references: [id, curriculumId])
   createdBy  User       @relation("QuestionCreatedBy", fields: [createdById], references: [id])
   approvedBy User?      @relation("QuestionApprovedBy", fields: [approvedById], references: [id])
 

@@ -17,6 +17,7 @@ from reportlab.graphics.shapes import Drawing, Rect, String, Line, Polygon
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "docs/Capstone_Technical_Report_Step1.pdf"
 REPORT_DATE = "19 October 2026"
+SCOPE = "Step 1: Foundation (sub-steps 1 to 3)"
 
 INK = colors.HexColor("#1F2937")
 MUTED = colors.HexColor("#6B7280")
@@ -160,7 +161,7 @@ def erd():
     ent(5, 105, "users", ["PK id", "   email (unique)", "   passwordHash", "   name", "   role: INSTRUCTOR"])
     ent(5, 5, "curricula", ["PK id", "   name (unique)", "   description", "FK createdById"])
     ent(170, 5, "chapters", ["PK id", "FK curriculumId", "   title", "   orderIndex"])
-    ent(350, 10, "questions", ["PK id", "   content / options / answer", "FK curriculumId", "FK chapterId",
+    ent(350, 10, "questions", ["PK id", "   content / options / answer", "FK curriculumId", "FK (chapterId, curriculumId)",
                                 "   difficulty, est.Minutes", "   source, status, visibility", "FK createdById",
                                 "FK approvedById (nullable)", "   rejectionReason", "   timesUsed, lastUsedAt"], w=125)
     rel(60, 105, 60, 69, "1 : N creates")
@@ -176,7 +177,7 @@ def on_page(canv, doc):
     canv.line(20 * mm, 15 * mm, 190 * mm, 15 * mm)
     canv.setFont("Helvetica", 7.5)
     canv.setFillColor(MUTED)
-    canv.drawString(20 * mm, 10.5 * mm, "Exam Question Bank - Capstone Technical Report (Step 1, sub-steps 1-2)")
+    canv.drawString(20 * mm, 10.5 * mm, "Exam Question Bank - Capstone Technical Report (Step 1, sub-steps 1-3)")
     canv.drawRightString(190 * mm, 10.5 * mm, f"Page {doc.page}")
     canv.restoreState()
 
@@ -193,7 +194,7 @@ story.append(Spacer(1, 22 * mm))
 story.append(Paragraph("Cloud-Based Exam Question Bank<br/>with AI-Assisted Exam Generation",
                        ParagraphStyle("ct", parent=body, fontName="Helvetica-Bold", fontSize=26, leading=31, textColor=colors.white)))
 story.append(Spacer(1, 5 * mm))
-story.append(Paragraph("Technical Progress Report  |  Step 1: Foundation (sub-steps 1 and 2)",
+story.append(Paragraph("Technical Progress Report  |  " + SCOPE,
                        ParagraphStyle("cs", parent=body, fontSize=12.5, leading=17, textColor=colors.HexColor("#DBEAFE"))))
 story.append(Spacer(1, 36 * mm))
 
@@ -203,8 +204,8 @@ def kpi(value, label):
             Paragraph(label, ParagraphStyle("kl", parent=small, alignment=TA_CENTER, textColor=MUTED))]
 
 
-k = [kpi("4", "database tables<br/>2 migrations"), kpi("13", "API operations<br/>in 9 route files"),
-     kpi("8", "secondary indexes<br/>6 foreign keys"), kpi("36/36", "end-to-end API<br/>checks passing")]
+k = [kpi("3", "migrations<br/>5 CHECK constraints"), kpi("13", "API operations<br/>in 9 route files"),
+     kpi("8", "secondary indexes<br/>6 foreign keys"), kpi("56/56", "end-to-end API<br/>checks passing")]
 kt = Table([[x[0] for x in k], [x[1] for x in k]], colWidths=[42.5 * mm] * 4)
 kt.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.6, RULE), ("INNERGRID", (0, 0), (-1, -1), 0.4, RULE),
                         ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
@@ -216,7 +217,7 @@ table([
     ["Repository", C("github.com/sannnntf123-pixel/mycapstone")],
     ["Stack", "Next.js 15.5 (App Router, TypeScript) | PostgreSQL 16 | Prisma 6.19 | JWT (jose) | Zod"],
     ["Users", "Instructors only. Instructors author and approve questions and (in a later step) generate exams."],
-    ["Status", "Project setup, schema, migrations and the full Step-1 REST API are complete and verified. "
+    ["Status", "Project setup, schema, REST API and security hardening (sub-step 3) are complete and verified. "
                "Seed data, automated test suite, app Dockerfile and README are next."],
 ], [38, 132], bold_first_col=True)
 story.append(NextPageTemplate("body"))
@@ -235,17 +236,21 @@ P("<b>Scope change (19 Oct 2026):</b> the system no longer has a Student role. S
 P("The implementation is a Next.js 15 application exposing a JSON REST API through App Router route handlers, backed "
   "by PostgreSQL through the Prisma ORM. Authentication is stateless (signed JWT bearer tokens) and gated by an "
   "invite code; authorization for questions is row-level: the visibility rule is defined in exactly one function "
-  "and every question query is composed with it. All 36 end-to-end checks pass against the running server and a "
+  "and every question query is composed with it. All 56 end-to-end checks pass against the running server and a "
   "real database.")
+P("<b>Hardening (sub-step 3):</b> the database now enforces the business rules itself (CHECK constraints and a "
+  "composite foreign key), failed logins and invite-code guesses are rate-limited, login timing no longer reveals which "
+  "emails exist, configuration is validated at startup, and malformed requests return 400 instead of 500. The test "
+  "suite grew to 56 checks and caught a real IP-spoofing weakness during development (Section 12.1).")
 
 H2("1.1 Scope and status")
 table([
     ["#", "Sub-step (Step 1)", "Status", "Evidence"],
     ["1", "Project setup: Next.js, Prisma, PostgreSQL in Docker, schema and initial migration", OK, "Migration 20261016091130_init"],
-    ["2", "REST API: auth, curricula/chapters, questions (create, list/filter, get, approve, reject, bank)", OK, "36/36 live checks; tsc + eslint clean"],
+    ["2", "REST API: auth, curricula/chapters, questions (create, list/filter, get, approve, reject, bank)", OK, "Live checks; tsc + eslint clean"],
     ["2b", "Scope change: remove Student role, instructor-only system", OK, "Migration 20261019100000_remove_student_role"],
-    ["3", "Guard review / hardening (DB CHECK on difficulty, login rate limit)", NEXT, "Guards in src/lib/auth.ts"],
-    ["4", "Seed data (instructors, 2 curricula with chapters, questions in each state)", "To do", "-"],
+    ["3", "Guard review and hardening: DB constraints, rate limiting, timing-safe login, startup config validation", OK, "Migration 20261019120000_db_integrity_checks; 56/56 checks"],
+    ["4", "Seed data (instructors, 2 curricula with chapters, questions in each state)", NEXT, "-"],
     ["5", "Automated test suite (approval + privacy) on an isolated test DB", "To do", "scripts/smoke-test.mjs to be ported"],
     ["6", "App Dockerfile, full docker-compose, README", "To do", "DB compose file exists"],
 ], [8, 92, 18, 52])
@@ -284,17 +289,20 @@ code("""
 my-capstone/
 |-- prisma/
 |   |-- schema.prisma                 data model (source of truth)
-|   `-- migrations/                   20261016091130_init, 20261019100000_remove_student_role
+|   `-- migrations/                   init, remove_student_role, db_integrity_checks
 |-- src/
 |   |-- app/api/                      HTTP layer - thin route handlers
 |   |   |-- auth/register|login|me/route.ts
 |   |   |-- curricula/route.ts, curricula/[id]/chapters/route.ts
 |   |   `-- questions/route.ts, bank/route.ts,
 |   |       [id]/route.ts, [id]/approve/route.ts, [id]/reject/route.ts
+|   |-- instrumentation.ts            validates config at server startup
 |   |-- lib/                          cross-cutting infrastructure
+|   |   |-- env.ts                    Zod-validated environment
 |   |   |-- prisma.ts                 singleton PrismaClient
 |   |   |-- auth.ts                   hashing, JWT, requireUser / requireRole
-|   |   |-- errors.ts                 HttpError, handle() wrapper
+|   |   |-- rate-limit.ts             failed-attempt counters (429)
+|   |   |-- errors.ts                 HttpError, handle(), readJson()
 |   |   `-- validation.ts             Zod schemas for every input
 |   `-- server/questions.ts           privacy filter + approval workflow
 |-- scripts/smoke-test.mjs            end-to-end API checks (npm run smoke)
@@ -336,17 +344,17 @@ table([
     ["options", "jsonb", "yes", "Array of choices for MCQ; null for open questions. API enforces answer is one of them."],
     ["answer", "text", "no", "Correct answer / model solution"],
     ["curriculumId", "text FK", "no", "-> curricula.id, ON DELETE RESTRICT"],
-    ["chapterId", "text FK", "no", "-> chapters.id, ON DELETE RESTRICT; must belong to curriculumId (service check)"],
-    ["difficulty", "integer", "no", "1-5 (validated by Zod)"],
-    ["estimatedTimeMinutes", "integer", "no", "1-600 (validated by Zod); input for exam-duration planning"],
+    ["chapterId", "text FK", "no", "Composite FK (chapterId, curriculumId) -> chapters(id, curriculumId): the DB guarantees the chapter belongs to the curriculum"],
+    ["difficulty", "integer", "no", "1-5 (Zod + DB CHECK)"],
+    ["estimatedTimeMinutes", "integer", "no", "1-600 (Zod + DB CHECK); input for exam-duration planning"],
     ["source", "QuestionSource", "no", "Forced to MANUAL by the create endpoint"],
     ["createdById", "text FK", "no", "-> users.id, ON DELETE RESTRICT; the owner"],
     ["status", "QuestionStatus", "no", "Forced to PENDING on create"],
     ["approvedById", "text FK", "yes", "-> users.id, ON DELETE SET NULL; set only on approval"],
-    ["approvedAt", "timestamp(3)", "yes", "Set only on approval"],
+    ["approvedAt", "timestamp(3)", "yes", "Set exactly when status = APPROVED (DB CHECK)"],
     ["rejectionReason", "text", "yes", "Optional reviewer comment on rejection"],
     ["visibility", "Visibility", "no", "PRIVATE by default (privacy-safe default)"],
-    ["timesUsed", "integer", "no", "Default 0; incremented by exam generation later"],
+    ["timesUsed", "integer", "no", "Default 0, never negative (DB CHECK); incremented by exam generation later"],
     ["lastUsedAt", "timestamp(3)", "yes", "Lets exam generation prefer less recently used questions"],
     ["createdAt / updatedAt", "timestamp(3)", "no", "Audit timestamps"],
 ], [36, 25, 10, 99])
@@ -356,7 +364,7 @@ table([
     ["users", "id, email, passwordHash, name, role, createdAt, updatedAt", "email UNIQUE. Only a bcrypt hash is stored, never the password."],
     ["curricula", "id, name, description?, createdById, createdAt, updatedAt", "name UNIQUE; createdById -> users (RESTRICT)"],
     ["chapters", "id, curriculumId, title, orderIndex, createdAt, updatedAt",
-     "UNIQUE(curriculumId, orderIndex), UNIQUE(curriculumId, title); curriculumId -> curricula ON DELETE CASCADE"],
+     "UNIQUE(curriculumId, orderIndex), UNIQUE(curriculumId, title), UNIQUE(id, curriculumId); orderIndex > 0 (CHECK); curriculumId -> curricula ON DELETE CASCADE"],
 ], [22, 70, 78], bold_first_col=True)
 H2("4.4 Indexes and why each exists")
 table([
@@ -368,12 +376,14 @@ table([
     ["users_email_key", "UNIQUE(email)", "Login lookup and duplicate-registration prevention"],
     ["curricula_name_key", "UNIQUE(name)", "Prevents duplicate curricula"],
     ["chapters_..._orderIndex_key / _title_key", "UNIQUE per curriculum", "Stable chapter ordering; no duplicate chapter titles"],
+    ["chapters_id_curriculumId_key", "UNIQUE(id, curriculumId)", "Target of the composite foreign key from questions"],
 ], [58, 38, 74])
 H2("4.5 Referential-integrity decisions")
 bullets([
     "<b>Deleting a curriculum cascades to its chapters</b>, but is <b>blocked</b> (RESTRICT) while any question references it, so approved bank content can never disappear silently.",
     "<b>Deleting a user is blocked</b> while they own questions or curricula. If an approver is removed, " + C("approvedById") + " becomes NULL (SET NULL) while " + C("approvedAt") + " keeps the historical fact.",
-    "Denormalising " + C("curriculumId") + " onto questions (it is derivable through the chapter) is deliberate: it makes the most common filter a single-column index lookup with no join.",
+    "Denormalising " + C("curriculumId") + " onto questions (it is derivable through the chapter) is deliberate: it makes the most common filter a single-column index lookup with no join. "
+    "The risk of denormalisation (the two copies disagreeing) is removed by the composite foreign key (Section 4.7).",
 ])
 H2("4.6 Migration history")
 table([
@@ -395,17 +405,50 @@ ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'INSTRUCTOR';
 """)
 P("After applying it, " + C("prisma migrate diff") + " between the live database and " + C("schema.prisma") +
   " produced an empty migration, confirming the database and schema are in sync.")
+table([
+    ["Migration", "Change"],
+    ["20261019120000_db_integrity_checks", "Adds the composite foreign key and five CHECK constraints described in Section 4.7. "
+     "Before applying it, the existing rows were queried and none violated the new rules."],
+], [55, 115], bold_first_col=True)
+
+H2("4.7 Rules enforced by the database itself (defence in depth)")
+P("Every rule below was already validated by the API. Enforcing it a second time in PostgreSQL means that a future bug, "
+  "a new code path (for example the AI generator writing questions), or a manual SQL edit still cannot store invalid "
+  "data. Prisma's schema language cannot express CHECK constraints, so they live in a hand-written migration.")
+table([
+    ["Constraint", "Rule", "Why"],
+    ["questions_chapterId_curriculumId_fkey", "(chapterId, curriculumId) -> chapters(id, curriculumId)",
+     "A question's chapter must belong to the question's curriculum; makes the denormalised curriculumId safe"],
+    ["questions_difficulty_range", "difficulty BETWEEN 1 AND 5", "Exam generation relies on the 1-5 scale"],
+    ["questions_estimated_time_range", "estimatedTimeMinutes BETWEEN 1 AND 600", "Exam duration sums must be meaningful"],
+    ["questions_times_used_non_negative", "timesUsed >= 0", "Usage statistics can never go negative"],
+    ["questions_approval_consistency", "(status = 'APPROVED') = (approvedAt IS NOT NULL)",
+     "Approval date exists exactly for approved questions. approvedById is excluded because it becomes NULL if the approver's account is deleted"],
+    ["chapters_order_index_positive", "orderIndex > 0", "Chapter numbering starts at 1"],
+], [52, 55, 63])
+code("""
+ALTER TABLE "questions" ADD CONSTRAINT "questions_chapterId_curriculumId_fkey"
+  FOREIGN KEY ("chapterId", "curriculumId") REFERENCES "chapters"("id", "curriculumId");
+ALTER TABLE "questions" ADD CONSTRAINT "questions_approval_consistency"
+  CHECK (("status" = 'APPROVED') = ("approvedAt" IS NOT NULL));
+""")
+P("The test script verifies each rule by running SQL directly inside the database container, bypassing the API, and "
+  "checking that PostgreSQL rejects the write with the expected constraint name (Section 11).")
 
 # ================= 5. AUTH =================
 H1("5. Authentication and access control")
 H2("5.1 Registration and login")
 bullets([
-    "Passwords are hashed with <b>bcrypt, cost factor 10</b> (salted, deliberately slow); minimum length 8.",
+    "Passwords are hashed with <b>bcrypt, cost factor 10</b> (salted, deliberately slow); length 8 characters to "
+    "<b>72 bytes</b>. bcrypt silently ignores everything after 72 bytes, so longer passwords are rejected rather than "
+    "giving a false sense of security.",
     "<b>Every registration requires an invite code</b> equal to the " + C("INSTRUCTOR_INVITE_CODE") +
     " environment variable (missing code: 400, wrong code: 403). Without this, anyone on the internet could create an "
     "account and read the shared question bank. If the variable is not set, registration fails closed.",
     "The role is <b>always set server-side</b> to INSTRUCTOR; a " + C("role") + " field sent by the client is ignored.",
-    "Login returns the same <i>'Invalid email or password'</i> (401) for an unknown email and a wrong password, preventing account enumeration.",
+    "Login returns the same <i>'Invalid email or password'</i> (401) for an unknown email and a wrong password, and "
+    "<b>takes the same time</b>: for an unknown email the password is still compared against a fixed dummy bcrypt hash. "
+    "Measured: 56 ms vs 55 ms average. Without this, the faster answer for unknown emails would reveal which accounts exist.",
     "Emails are normalised to lower case before storage and lookup.",
 ])
 H2("5.2 Token design")
@@ -415,7 +458,8 @@ table([
     ["Claims", C("sub") + " = user id, " + C("role") + ", " + C("iat") + ", " + C("exp")],
     ["Lifetime", "JWT_EXPIRES_IN, default 8h (a teaching day)"],
     ["Transport", C("Authorization: Bearer &lt;token&gt;") + " header (no cookies, therefore no CSRF surface for the API)"],
-    ["Verification", "Signature and expiry checked by jose.jwtVerify; then the user row is reloaded"],
+    ["Verification", "jose.jwtVerify with <b>algorithms pinned to HS256</b> (a token claiming another algorithm, e.g. 'none', is rejected); then the user row is reloaded"],
+    ["Secret strength", "JWT_SECRET must be at least 32 characters, checked at server startup (Section 5.5)"],
 ], [38, 132], bold_first_col=True)
 P("<b>Why reload the user on every request?</b> The token's " + C("role") + " claim is informational only; authorization "
   "uses the role read from the database. A deleted account or a changed role therefore takes effect on the next "
@@ -444,6 +488,36 @@ table([
     ["Approve / reject", "no (401)", "pending questions visible to them"],
     ["Generate exams (later step)", "no (401)", "planned"],
 ], [75, 35, 60], bold_first_col=True)
+P("<b>Audit (sub-step 3):</b> all 13 operations were checked against this matrix. Every handler is wrapped in "
+  + C("handle()") + ", every protected handler calls " + C("requireRole(req, 'INSTRUCTOR')") + " (" + C("/auth/me") +
+  " was changed from a plain login check to the explicit role check), and every request body goes through " + C("readJson()") +
+  " and a Zod schema.")
+
+H2("5.4 Rate limiting (brute-force protection)")
+table([
+    ["Target", "Counter key", "Rule"],
+    ["Login", C("login:&lt;email&gt;"), "After 5 failed logins for an account within 15 minutes, every login attempt for it returns 429 with a Retry-After header, even with the correct password. A successful login resets the counter."],
+    ["Registration", C("register:&lt;client IP&gt;"), "After 5 wrong invite codes within 15 minutes, registration returns 429, even with the correct code (otherwise a correct guess would still be confirmed)."],
+], [24, 40, 106], bold_first_col=True)
+bullets([
+    "Limits are configurable with " + C("RATE_LIMIT_MAX_ATTEMPTS") + " and " + C("RATE_LIMIT_WINDOW_MINUTES") + ".",
+    "<b>Login is limited per account, not per IP.</b> An attacker who rotates IP addresses still gets only 5 guesses per account per window. "
+    "Trade-off: an attacker can deliberately lock a known account for 15 minutes (a nuisance, not a breach).",
+    "<b>Client IPs are only trusted behind a proxy.</b> " + C("X-Forwarded-For") + " is set by the client unless a proxy (Vercel, nginx) "
+    "overwrites it. With " + C("TRUST_PROXY=false") + " (default) all invite-code attempts share one counter; with " + C("TRUST_PROXY=true") +
+    " the proxy-appended last hop is used.",
+    "The counters live in server memory behind a small " + C("AttemptStore") + " interface: correct for one instance; a multi-instance "
+    "deployment would plug in a shared store such as Redis without changing the routes.",
+])
+
+H2("5.5 Fail-fast configuration")
+P("All environment variables are validated with Zod in " + C("src/lib/env.ts") + ", called from " + C("src/instrumentation.ts") +
+  ", which Next.js runs once at server startup. A missing or weak value stops the server immediately with a clear message, "
+  "instead of failing on the first request in production. Verified by starting the server with an 8-character secret:")
+code("""
+Error: An error occurred while loading instrumentation hook: Invalid environment configuration:
+  - JWT_SECRET: JWT_SECRET must be at least 32 characters (use: openssl rand -base64 32)
+""")
 
 # ================= 6. PRIVACY =================
 H1("6. Privacy model (row-level authorization)")
@@ -517,14 +591,18 @@ table([
 ], [42, 128], bold_first_col=True)
 P("Unknown fields such as " + C("role") + ", " + C("status") + " or " + C("createdById") +
   " are stripped by Zod, so clients cannot mass-assign protected fields (verified in Section 11).")
+P("Request bodies are read with " + C("readJson()") + ": malformed JSON or a missing body now returns <b>400</b> instead of "
+  "crashing with a 500. Before sub-step 3, the reject endpoint silently treated malformed JSON as 'no reason given'; it "
+  "now rejects it too, while a genuinely empty body is still allowed there because the reason is optional.")
 table([
     ["Status", "Meaning in this API"],
     ["200 / 201", "Success / resource created"],
-    ["400", "Validation failed (with per-field details) or inconsistent input (e.g. chapter not in curriculum)"],
+    ["400", "Validation failed (with per-field details), malformed JSON, or inconsistent input (e.g. chapter not in curriculum)"],
     ["401", "Missing, invalid or expired token; bad login"],
     ["403", "Wrong role; invalid invite code"],
     ["404", "Not found, or not visible to the caller"],
     ["409", "Duplicate (email, curriculum, chapter) or invalid status transition / concurrent review"],
+    ["429", "Too many failed logins or invite-code attempts; Retry-After header gives the seconds to wait"],
     ["500", "Unexpected error; logged server-side, generic message to client (no stack traces leak)"],
 ], [20, 150], bold_first_col=True)
 code("""
@@ -584,9 +662,11 @@ H1("10. Configuration and environment")
 table([
     ["Variable", "Purpose", "Example / default"],
     ["DATABASE_URL", "PostgreSQL connection string", C("postgresql://capstone:***@localhost:5434/question_bank")],
-    ["JWT_SECRET", "HMAC key for signing tokens", "random, from " + C("openssl rand -base64 32")],
+    ["JWT_SECRET", "HMAC key for signing tokens (min 32 chars)", "random, from " + C("openssl rand -base64 32")],
     ["JWT_EXPIRES_IN", "Token lifetime", "8h"],
-    ["INSTRUCTOR_INVITE_CODE", "Required to register; unset = registration closed", "set per deployment"],
+    ["INSTRUCTOR_INVITE_CODE", "Required to register (min 8 chars)", "set per deployment"],
+    ["RATE_LIMIT_MAX_ATTEMPTS / _WINDOW_MINUTES", "Brute-force limits", "5 / 15"],
+    ["TRUST_PROXY", "Trust X-Forwarded-For from a fronting proxy", "false (true on Vercel / behind nginx)"],
     ["DB_PORT, POSTGRES_*", "docker-compose overrides", "5434, capstone, question_bank"],
 ], [40, 60, 70], bold_first_col=True)
 P("All configuration is read from the environment (12-factor), so the same build runs locally and in the cloud with "
@@ -614,7 +694,8 @@ H1("11. Verification")
 P("<b>Static checks:</b> " + C("tsc --noEmit") + " and " + C("eslint") + " report zero errors; " +
   C("prisma migrate diff") + " shows no drift between database and schema. <b>Dynamic checks:</b> "
   + C("scripts/smoke-test.mjs") + " registers fresh instructors and exercises every endpoint over HTTP against the "
-  "running server and the real PostgreSQL database. Result after the instructor-only change: <b>36 of 36 checks passed</b>.")
+  "running server and the real PostgreSQL database; the database-rule checks run SQL directly inside the container. "
+  "Result after sub-step 3: <b>56 of 56 checks passed</b>.")
 checks = [
     ("Auth", "Register without invite code -> 400; wrong invite code -> 403"),
     ("Auth", "Client-supplied role is ignored; account is INSTRUCTOR"),
@@ -634,10 +715,23 @@ checks = [
     ("Workflow", "Owner rejects with reason; approving a rejected question -> 409"),
     ("Bank", "Bank contains only approved; ignores a status override in the query"),
     ("Filtering", "Filter by status + difficulty returns exactly the matching question"),
+    ("Input", "Malformed JSON -> 400; empty body -> 400; malformed JSON on reject -> 400"),
+    ("Input", "Password over 72 bytes -> 400"),
+    ("Database", "Direct SQL: difficulty 9, estimatedTimeMinutes 0, chapter orderIndex 0 are rejected"),
+    ("Database", "Direct SQL: APPROVED without approvedAt, and approvedAt on a non-approved question, are rejected"),
+    ("Database", "Direct SQL: moving a question to a curriculum its chapter doesn't belong to is rejected"),
+    ("Rate limit", "5 wrong passwords -> 401 each; 6th -> 429 with Retry-After; correct password also 429 while locked"),
+    ("Rate limit", "Other accounts unaffected by one account's lock"),
+    ("Rate limit", "Spoofed X-Forwarded-For (new fake IP per attempt) does not bypass the login limit"),
+    ("Rate limit", "A successful login resets the failure counter"),
+    ("Rate limit", "Wrong invite codes from spoofed IPs: 5 x 403, then 429; correct code also 429 while locked"),
+    ("Config", "Server refuses to start with a JWT_SECRET under 32 characters (manual check)"),
+    ("Timing", "Unknown email vs wrong password: 56 ms vs 55 ms average (manual check)"),
 ]
 table([["Area", "Check", "Result"]] + [[a, c, PASS] for a, c in checks], [24, 128, 18])
-P("Rows group related assertions; the script reports 36 individual checks. They will be ported to a permanent "
-  "automated suite (Vitest, isolated test database) in sub-step 5.", small)
+P("Rows group related assertions; the script reports 56 individual checks (the last two rows were verified manually). "
+  "The final section intentionally trips the invite-code limit, so the dev server must be restarted before re-running "
+  "within the window. The checks will be ported to a permanent automated suite (Vitest, isolated test database) in sub-step 5.", small)
 
 # ================= 12. ISSUES =================
 H1("12. Engineering log, risks and open questions")
@@ -652,11 +746,19 @@ table([
     [".env.example ignored by git", "Default Next.js .gitignore ignores .env*", "Added !.env.example exception"],
     ["prisma migrate dev refused the enum change", "Removing an enum value that existing rows use needs interactive confirmation",
      "Wrote the migration by hand (Section 4.6), applied with migrate deploy, verified with migrate diff"],
+    ["Rate limit bypassable by faking X-Forwarded-For (found by the new test)",
+     "The first design keyed login failures by IP + email, reading the IP from X-Forwarded-For. The Next.js server passes the client's header through unchanged, so a fresh fake IP per attempt reset the counter",
+     "Login limit keyed per account; client IPs trusted only with TRUST_PROXY=true behind a proxy that sets the header. The regression test now passes"],
+    ["Broken JSON caused HTTP 500", "req.json() throws on malformed input and the error reached the generic handler",
+     "readJson() helper returns 400; used by every route"],
+    ["DB outage reported as 401", "A try/catch around both token verification and the user lookup swallowed database errors",
+     "Narrowed the try/catch to token verification only; DB errors now surface as 500"],
 ], [38, 66, 66])
 H2("12.2 Known limitations (to address in later sub-steps)")
 bullets([
-    "<b>Difficulty range is enforced in the application layer only.</b> A database CHECK constraint (difficulty BETWEEN 1 AND 5) should be added for defence in depth.",
-    "<b>No rate limiting</b> on /auth/login and /auth/register; brute-force protection is needed before public deployment.",
+    "<b>Rate-limit counters are in memory.</b> They reset when the server restarts and are not shared between instances; a multi-instance deployment needs a shared store such as Redis.",
+    "<b>Per-account login lockout can be abused</b> to lock a known account for 15 minutes. Acceptable for a small invite-only user base; CAPTCHA or progressive delays are the usual next step.",
+    "<b>Without TRUST_PROXY</b>, all invite-code attempts share one counter, so repeated wrong codes from anyone pause registration for everyone for 15 minutes.",
     "<b>Tokens cannot be revoked early.</b> Mitigated by the per-request user reload (deleted users apply immediately); a token denylist or short-lived access + refresh tokens can follow.",
     "<b>A single shared invite code</b> gates registration; per-person invites or an admin approval step would allow revoking one person's invite.",
     "<b>options JSON is validated by Zod, not by the database.</b> Acceptable for now; could move to a dedicated table if per-option analytics are needed.",
@@ -672,7 +774,6 @@ bullets([
 H1("13. Next steps")
 table([
     ["Sub-step", "Deliverable"],
-    ["3 - Guard review", "Audit every route against the permission matrix; DB CHECK constraint for difficulty; login rate limiting"],
     ["4 - Seed data", "prisma/seed.ts: several instructors, 2 curricula with chapters, questions in PENDING / APPROVED / REJECTED, private and shared"],
     ["5 - Automated tests", "Vitest suite on a separate test database covering the approval workflow and every privacy rule in Section 6"],
     ["6 - Cloud readiness", "Multi-stage Dockerfile (Next.js standalone output), docker-compose with app + db, README"],

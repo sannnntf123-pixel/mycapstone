@@ -18,15 +18,15 @@ The system **no longer has students**. Only instructors use it: they add questio
 
 ## Where we are
 
-**Step 1 (Foundation), sub-steps 1 and 2 are done, plus the instructor-only change.** Sub-steps 3 to 6 are next.
+**Step 1 (Foundation), sub-steps 1 to 3 are done, plus the instructor-only change.** Sub-steps 4 to 6 are next.
 
 | # | Sub-step | Status |
 |---|----------|--------|
 | 1 | Project setup: Next.js, Prisma, PostgreSQL in Docker, schema and first migration | Done |
 | 2 | API routes: auth, curricula/chapters, questions (create / list / filter / approve / reject / bank) | Done |
-| 2b | Remove the Student role; every endpoint requires an instructor | Done; 36/36 smoke checks |
-| 3 | Guard review and hardening: DB CHECK constraint on difficulty, rate limit on login | **Next** |
-| 4 | Seed script: several instructors, 2 curricula with chapters, questions in each state (private and shared) | To do |
+| 2b | Remove the Student role; every endpoint requires an instructor | Done |
+| 3 | Guard review and hardening: DB constraints, rate limiting, timing-safe login, startup config validation, malformed JSON → 400 | Done; 56/56 smoke checks |
+| 4 | Seed script: several instructors, 2 curricula with chapters, questions in each state (private and shared) | **Next** |
 | 5 | Automated tests (Vitest) for the approval workflow and privacy rules, using a separate test DB (port `scripts/smoke-test.mjs`) | To do |
 | 6 | Dockerfile for the app, `docker-compose` with app and db, README | To do |
 
@@ -55,8 +55,10 @@ cp .env.example .env        # then set JWT_SECRET (openssl rand -base64 32) and 
 npm run db:up               # starts Postgres in Docker on host port 5434
 npm run db:migrate          # applies migrations + generates Prisma client
 npm run dev                 # API on http://localhost:3100
-npm run smoke               # second terminal: 36 end-to-end checks against the running API
+npm run smoke               # second terminal: 56 end-to-end checks against the running API
 ```
+
+`npm run smoke` deliberately trips the invite-code rate limit at the end, so **restart the dev server before running it again** (the counters live in memory).
 
 Machine notes (this Mac):
 - Docker runs through **Colima**. Run `colima start` first if `docker ps` fails.
@@ -80,7 +82,7 @@ python3 -m venv .venv-report && .venv-report/bin/pip install reportlab
 my-capstone/
 ├── prisma/
 │   ├── schema.prisma            # database schema (source of truth)
-│   └── migrations/              # init + remove_student_role
+│   └── migrations/              # init, remove_student_role, db_integrity_checks
 ├── src/
 │   ├── app/api/                 # HTTP layer: thin route handlers only
 │   │   ├── auth/{register,login,me}/route.ts
@@ -90,10 +92,13 @@ my-capstone/
 │   │       ├── route.ts               # GET list/filter, POST create
 │   │       ├── bank/route.ts          # GET approved-only question bank
 │   │       └── [id]/{route,approve/route,reject/route}.ts
+│   ├── instrumentation.ts       # validates env at server startup (fail fast)
 │   ├── lib/                     # shared infrastructure
+│   │   ├── env.ts               # Zod-validated environment variables
 │   │   ├── prisma.ts            # single Prisma client
-│   │   ├── auth.ts              # hashing, JWT, requireUser / requireRole
-│   │   ├── errors.ts            # HttpError + handle() wrapper → JSON errors
+│   │   ├── auth.ts              # hashing, JWT, requireUser / requireRole, timing-safe verify
+│   │   ├── rate-limit.ts        # failed-attempt counters → 429
+│   │   ├── errors.ts            # HttpError, handle(), readJson() → JSON errors
 │   │   └── validation.ts        # Zod schemas for every input
 │   └── server/                  # business logic (domain services)
 │       └── questions.ts         # privacy filter + approval workflow
@@ -115,6 +120,10 @@ Later steps slot in as `src/server/ai.ts`, `src/server/exams.ts`, `src/app/api/e
 - **Chapter**: belongs to a Curriculum (cascade delete), title, orderIndex; unique per curriculum
 - **Question**: content, `options` (JSON, optional, for MCQ), answer, curriculumId, chapterId, difficulty 1–5, estimatedTimeMinutes, source `MANUAL | AI`, createdById, status `PENDING | APPROVED | REJECTED`, approvedById, approvedAt, rejectionReason, visibility `PRIVATE | SHARED`, timesUsed, lastUsedAt
 - Indexes: (curriculumId, chapterId), (status, visibility), createdById, difficulty. These match the filters that exam generation will use.
+- **Database-enforced rules** (migration `20261019120000_db_integrity_checks`):
+  - a composite FK `(chapterId, curriculumId) → chapters(id, curriculumId)`, so a chapter must belong to the question's curriculum
+  - `CHECK` difficulty 1–5, estimatedTimeMinutes 1–600, timesUsed ≥ 0, chapter orderIndex > 0
+  - `CHECK` that approvedAt is set exactly when status = APPROVED
 
 ---
 
@@ -150,7 +159,10 @@ All endpoints except register and login need `Authorization: Bearer <token>` fro
 8. **The user is reloaded from the DB on every request** instead of trusting the role inside the token. A deleted account takes effect immediately.
 9. **Removing the Student role entirely** rather than just disabling it. Unused roles still have to be guarded everywhere, so dropping them shrinks the attack surface. The role column is kept as an enum, so adding a role back is one migration.
 10. **Future-proofing:** `source` (MANUAL/AI) already exists for AI generation, and `timesUsed`/`lastUsedAt` exist for exam generation. Indexes match the exam-builder filters. `options` JSON supports MCQ without a schema change.
-11. **Config comes only from environment variables** (12-factor), so the same build runs locally and in the cloud.
+11. **Config comes only from environment variables** (12-factor), so the same build runs locally and in the cloud. It is validated at startup: a missing value or a JWT secret under 32 characters stops the server.
+12. **Defence in depth:** the database enforces the same rules as the API (CHECK constraints plus a composite FK). A bug or a manual SQL edit can't store invalid data.
+13. **Rate limiting:** 5 failed logins per account per 15 min returns 429 with Retry-After, and the same applies to wrong invite codes. Login is keyed per account, not per IP, so rotating or faking IPs doesn't help. IPs are only trusted with `TRUST_PROXY=true` behind Vercel or nginx. The counters are in memory, so multiple servers would need Redis.
+14. **Timing-safe login:** an unknown email is still checked against a dummy bcrypt hash, so its response time matches a wrong password (measured 56 vs 55 ms). JWT verification is pinned to HS256. Passwords are capped at 72 bytes, the bcrypt limit.
 
 ---
 
@@ -168,6 +180,13 @@ All endpoints except register and login need `Authorization: Bearer <token>` fro
     - private versus shared visibility, including that a `visibility=PRIVATE` filter can't leak other people's questions
     - approve/reject behaviour and 409 on a second review
     - the bank is approved-only and ignores a status override
+
+- 2026-10-19 (sub-step 3):
+  - Migration `20261019120000_db_integrity_checks` applied with no drift.
+  - `tsc` and `eslint` are clean.
+  - `npm run smoke` passes **56/56**.
+  - The new IP-spoofing test caught a real bypass in the first design (login was keyed by IP + email, and Next passes the client's X-Forwarded-For through unchanged). It was fixed by keying per account and adding `TRUST_PROXY`.
+  - The server refuses to start with a weak JWT secret (checked manually).
 
 ## Open questions
 
