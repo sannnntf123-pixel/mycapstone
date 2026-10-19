@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "typecheck": "tsc --noEmit",
-    "smoke": "node scripts/smoke-test.mjs"
+    "smoke": "node scripts/smoke-test.mjs",
+    "db:seed": "prisma db seed",
+    "check:seed": "node --env-file=.env scripts/check-seed.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -33,5 +35,8 @@
     "prisma": "^6.19.3",
     "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

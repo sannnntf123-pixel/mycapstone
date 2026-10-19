@@ -1,0 +1,385 @@
+.shell {
+  --bg: #f7f8fa;
+  --panel: #ffffff;
+  --ink: #1f2937;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --accent: #1d4ed8;
+  --accent-soft: #dbeafe;
+  --ok: #047857;
+  --ok-soft: #d1fae5;
+  --warn: #b45309;
+  --warn-soft: #fef3c7;
+  --bad: #b91c1c;
+  --bad-soft: #fee2e2;
+  --code: #f3f4f6;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .shell {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --ink: #e5e7eb;
+    --muted: #9ca3af;
+    --line: #2a2f3a;
+    --accent: #60a5fa;
+    --accent-soft: #1e293b;
+    --ok: #34d399;
+    --ok-soft: #064e3b;
+    --warn: #fbbf24;
+    --warn-soft: #451a03;
+    --bad: #f87171;
+    --bad-soft: #450a0a;
+    --code: #0b0d11;
+  }
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  font-weight: 700;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.navLink {
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.navLink:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.navActive {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.who {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  gap: 20px;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (max-width: 1000px) {
+  .main {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  min-width: 0;
+}
+
+.card h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.hint {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px 12px;
+  align-items: end;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  min-width: 0;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 60px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 13px;
+}
+
+.inlineInput {
+  flex: 1;
+  min-width: 160px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding-bottom: 8px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.button {
+  font: inherit;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+
+.danger {
+  border-color: var(--bad);
+  background: var(--bad);
+}
+
+.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background: var(--accent-soft);
+}
+
+.selected {
+  background: var(--accent-soft);
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--code);
+  color: var(--muted);
+}
+
+.APPROVED {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.PENDING {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.REJECTED {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.SHARED,
+.AI {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.status2 {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.status4 {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.status5,
+.status0 {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.pre {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  background: var(--code);
+  border-radius: 6px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.logPanel {
+  position: sticky;
+  top: 70px;
+  max-height: calc(100vh - 90px);
+  overflow: auto;
+}
+
+@media (max-width: 1000px) {
+  .logPanel {
+    position: static;
+    max-height: none;
+  }
+}
+
+.logEntry {
+  border-top: 1px solid var(--line);
+  padding: 10px 0;
+}
+
+.logHead {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 12px;
+}
+
+.logPath {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.notice {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13px;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 6px 12px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.detailGrid dt {
+  color: var(--muted);
+}
+
+.detailGrid dd {
+  margin: 0;
+  word-break: break-word;
+}

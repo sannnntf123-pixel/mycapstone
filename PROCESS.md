@@ -18,16 +18,16 @@ The system **no longer has students**. Only instructors use it: they add questio
 
 ## Where we are
 
-**Step 1 (Foundation), sub-steps 1 to 3 are done, plus the instructor-only change.** Sub-steps 4 to 6 are next.
+**Step 1 (Foundation), sub-steps 1 to 4 are done, plus the instructor-only change.** Sub-steps 5 and 6 are next.
 
 | # | Sub-step | Status |
 |---|----------|--------|
 | 1 | Project setup: Next.js, Prisma, PostgreSQL in Docker, schema and first migration | Done |
 | 2 | API routes: auth, curricula/chapters, questions (create / list / filter / approve / reject / bank) | Done |
 | 2b | Remove the Student role; every endpoint requires an instructor | Done |
-| 3 | Guard review and hardening: DB constraints, rate limiting, timing-safe login, startup config validation, malformed JSON → 400 | Done; 56/56 smoke checks |
-| 4 | Seed script: several instructors, 2 curricula with chapters, questions in each state (private and shared) | **Next** |
-| 5 | Automated tests (Vitest) for the approval workflow and privacy rules, using a separate test DB (port `scripts/smoke-test.mjs`) | To do |
+| 3 | Guard review and hardening: DB constraints, rate limiting, timing-safe login, startup config validation, malformed JSON → 400 | Done; 55/55 smoke checks |
+| 4 | Demo seed data: 3 instructors, 2 curricula, 7 chapters, 25 questions in every state (2 AI-generated) | Done; `check:seed` 17/17 |
+| 5 | Automated tests (Vitest) for the approval workflow and privacy rules, using a separate test DB (port `scripts/smoke-test.mjs` and `scripts/check-seed.mjs`) | **Next** |
 | 6 | Dockerfile for the app, `docker-compose` with app and db, README | To do |
 
 **Later steps:** AI question generation, then instructor-only AI exam generation (by curriculum, chapters, difficulty, total duration), then the frontend UI.
@@ -54,9 +54,12 @@ npm install
 cp .env.example .env        # then set JWT_SECRET (openssl rand -base64 32) and INSTRUCTOR_INVITE_CODE
 npm run db:up               # starts Postgres in Docker on host port 5434
 npm run db:migrate          # applies migrations + generates Prisma client
+npm run db:seed             # demo data (safe to re-run; refuses in production)
 npm run dev                 # API on http://localhost:3100
-npm run smoke               # second terminal: 56 end-to-end checks against the running API
+npm run smoke               # second terminal: 55 end-to-end checks against the running API
 ```
+
+`npm run check:seed` (server running) verifies that each demo instructor sees exactly the right questions.
 
 `npm run smoke` deliberately trips the invite-code rate limit at the end, so **restart the dev server before running it again** (the counters live in memory).
 
@@ -66,6 +69,40 @@ Machine notes (this Mac):
 - A local Homebrew Postgres already uses port **5432**, and another project uses **5433**, so this project uses **5434**.
 - `.env` holds a random JWT secret and the invite code `capstone-instructor`. Git ignores `.env`; `.env.example` is committed.
 - `prisma migrate dev` refuses to run in Claude's non-interactive shell when a change could lose data. In that case, write the migration SQL by hand, then run `npx prisma migrate deploy`. Check for drift with `npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script`, which should print an empty migration.
+
+### Demo logins (after `npm run db:seed`)
+
+The password is whatever `SEED_PASSWORD` is set to in your local `.env` (not committed).
+
+| Instructor | Email | Sees (own + shared) | Bank |
+|---|---|---|---|
+| Dr. Lina Nasser | lina.nasser@example.com | 21 | 14 |
+| Dr. Omar Khalil | omar.khalil@example.com | 22 | 14 |
+| Dr. Sara Haddad | sara.haddad@example.com | 20 | 13 |
+
+The seed covers:
+- **Curricula:** *Mathematics 101* (Algebra, Functions, Limits, Derivatives) and *Introduction to Programming* (Variables and Types, Control Flow, Functions).
+- **Questions (25):**
+  - by status: 15 approved, 7 pending, 3 rejected
+  - by visibility: 19 shared, 6 private
+  - 8 multiple-choice; 8 with usage history
+  - 2 AI-generated, both still pending
+
+### API tester pages (`/tester`)
+
+Developer pages for trying the API in a browser, at http://localhost:3100/tester. They are thin clients: all security stays in the API.
+
+| Page | What it does |
+|---|---|
+| `/tester` | Log in (quick-fill demo emails), register with invite code, "who am I", shows the token |
+| `/tester/curricula` | List curricula and chapters; create curriculum or chapter |
+| `/tester/questions` | Filter (curriculum, chapter, difficulty, status, visibility, mine, paging) against `/questions` or `/questions/bank`; view detail; approve or reject; create a question (open or MCQ) |
+| `/tester/review` | Pending queue with approve and reject-with-reason |
+| `/tester/raw` | Send any method, path and body (including malformed JSON); presets for common error cases |
+
+Every page shows a request log with the method, path, status, time and JSON response. The token is kept in `localStorage`, which is acceptable for a dev tool but not for the real UI.
+
+These pages were checked in the browser: log in as Lina, see 13 Mathematics questions, create a question, approve it from the review queue (6 pending → 5), and the raw presets return 400/404/200 as expected. That check left one extra approved question ("UI tester check…") owned by Lina in *Introduction to Programming*, so `check:seed` now counts 26 instead of 25 until it is removed or the database is re-seeded.
 
 Regenerate the PDF report after changes:
 
@@ -82,7 +119,8 @@ python3 -m venv .venv-report && .venv-report/bin/pip install reportlab
 my-capstone/
 ├── prisma/
 │   ├── schema.prisma            # database schema (source of truth)
-│   └── migrations/              # init, remove_student_role, db_integrity_checks
+│   ├── migrations/              # init, remove_student_role, db_integrity_checks
+│   └── seed.ts                  # idempotent demo data (npm run db:seed)
 ├── src/
 │   ├── app/api/                 # HTTP layer: thin route handlers only
 │   │   ├── auth/{register,login,me}/route.ts
@@ -103,6 +141,7 @@ my-capstone/
 │   └── server/                  # business logic (domain services)
 │       └── questions.ts         # privacy filter + approval workflow
 ├── scripts/smoke-test.mjs       # end-to-end API checks (npm run smoke)
+├── scripts/check-seed.mjs       # per-instructor check of the seed data (npm run check:seed)
 ├── docs/                        # technical report PDF + its generator (docs/report/)
 ├── docker-compose.yml           # Postgres
 ├── .env.example
@@ -184,12 +223,19 @@ All endpoints except register and login need `Authorization: Bearer <token>` fro
 - 2026-10-19 (sub-step 3):
   - Migration `20261019120000_db_integrity_checks` applied with no drift.
   - `tsc` and `eslint` are clean.
-  - `npm run smoke` passes **56/56**.
+  - `npm run smoke` passes **55/55**. (An earlier note said 56: that count wrongly included the final "ALL PASSED" line.)
   - The new IP-spoofing test caught a real bypass in the first design (login was keyed by IP + email, and Next passes the client's X-Forwarded-For through unchanged). It was fixed by keying per account and adding `TRUST_PROXY`.
   - The server refuses to start with a weak JWT secret (checked manually).
+
+- 2026-10-19 (sub-step 4):
+  - `db:seed` was run twice: it created 25 questions, then 0, so it is idempotent.
+  - `check:seed` passes 17/17.
+  - `NODE_ENV=production` seeding is refused.
+  - smoke still passes 55/55.
 
 ## Open questions
 
 - Should instructors be allowed to **edit** a question after rejection and resubmit it? This is not built yet.
 - Should an instructor be allowed to **approve their own shared question**, or should shared questions require a different instructor? Currently both are allowed.
 - Should instructors be able to change a question's visibility after approval?
+- Should rejections record **who rejected** the question and when? Today only approvals store the reviewer (approvedBy/approvedAt). A generic `reviewedBy`/`reviewedAt` pair would fix this.

@@ -17,7 +17,7 @@ from reportlab.graphics.shapes import Drawing, Rect, String, Line, Polygon
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "docs/Capstone_Technical_Report_Step1.pdf"
 REPORT_DATE = "19 October 2026"
-SCOPE = "Step 1: Foundation (sub-steps 1 to 3)"
+SCOPE = "Step 1: Foundation (sub-steps 1 to 4)"
 
 INK = colors.HexColor("#1F2937")
 MUTED = colors.HexColor("#6B7280")
@@ -177,7 +177,7 @@ def on_page(canv, doc):
     canv.line(20 * mm, 15 * mm, 190 * mm, 15 * mm)
     canv.setFont("Helvetica", 7.5)
     canv.setFillColor(MUTED)
-    canv.drawString(20 * mm, 10.5 * mm, "Exam Question Bank - Capstone Technical Report (Step 1, sub-steps 1-3)")
+    canv.drawString(20 * mm, 10.5 * mm, "Exam Question Bank - Capstone Technical Report (Step 1, sub-steps 1-4)")
     canv.drawRightString(190 * mm, 10.5 * mm, f"Page {doc.page}")
     canv.restoreState()
 
@@ -205,7 +205,7 @@ def kpi(value, label):
 
 
 k = [kpi("3", "migrations<br/>5 CHECK constraints"), kpi("13", "API operations<br/>in 9 route files"),
-     kpi("8", "secondary indexes<br/>6 foreign keys"), kpi("56/56", "end-to-end API<br/>checks passing")]
+     kpi("8", "secondary indexes<br/>6 foreign keys"), kpi("55/55", "end-to-end API<br/>checks passing")]
 kt = Table([[x[0] for x in k], [x[1] for x in k]], colWidths=[42.5 * mm] * 4)
 kt.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.6, RULE), ("INNERGRID", (0, 0), (-1, -1), 0.4, RULE),
                         ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
@@ -217,8 +217,8 @@ table([
     ["Repository", C("github.com/sannnntf123-pixel/mycapstone")],
     ["Stack", "Next.js 15.5 (App Router, TypeScript) | PostgreSQL 16 | Prisma 6.19 | JWT (jose) | Zod"],
     ["Users", "Instructors only. Instructors author and approve questions and (in a later step) generate exams."],
-    ["Status", "Project setup, schema, REST API and security hardening (sub-step 3) are complete and verified. "
-               "Seed data, automated test suite, app Dockerfile and README are next."],
+    ["Status", "Project setup, schema, REST API, security hardening and demo seed data are complete and verified. "
+               "Automated test suite, app Dockerfile and README are next."],
 ], [38, 132], bold_first_col=True)
 story.append(NextPageTemplate("body"))
 story.append(PageBreak())
@@ -236,12 +236,12 @@ P("<b>Scope change (19 Oct 2026):</b> the system no longer has a Student role. S
 P("The implementation is a Next.js 15 application exposing a JSON REST API through App Router route handlers, backed "
   "by PostgreSQL through the Prisma ORM. Authentication is stateless (signed JWT bearer tokens) and gated by an "
   "invite code; authorization for questions is row-level: the visibility rule is defined in exactly one function "
-  "and every question query is composed with it. All 56 end-to-end checks pass against the running server and a "
+  "and every question query is composed with it. All 55 automated end-to-end checks pass against the running server and a "
   "real database.")
 P("<b>Hardening (sub-step 3):</b> the database now enforces the business rules itself (CHECK constraints and a "
   "composite foreign key), failed logins and invite-code guesses are rate-limited, login timing no longer reveals which "
   "emails exist, configuration is validated at startup, and malformed requests return 400 instead of 500. The test "
-  "suite grew to 56 checks and caught a real IP-spoofing weakness during development (Section 12.1).")
+  "suite grew to 55 checks and caught a real IP-spoofing weakness during development (Section 12.1).")
 
 H2("1.1 Scope and status")
 table([
@@ -249,9 +249,9 @@ table([
     ["1", "Project setup: Next.js, Prisma, PostgreSQL in Docker, schema and initial migration", OK, "Migration 20261016091130_init"],
     ["2", "REST API: auth, curricula/chapters, questions (create, list/filter, get, approve, reject, bank)", OK, "Live checks; tsc + eslint clean"],
     ["2b", "Scope change: remove Student role, instructor-only system", OK, "Migration 20261019100000_remove_student_role"],
-    ["3", "Guard review and hardening: DB constraints, rate limiting, timing-safe login, startup config validation", OK, "Migration 20261019120000_db_integrity_checks; 56/56 checks"],
-    ["4", "Seed data (instructors, 2 curricula with chapters, questions in each state)", NEXT, "-"],
-    ["5", "Automated test suite (approval + privacy) on an isolated test DB", "To do", "scripts/smoke-test.mjs to be ported"],
+    ["3", "Guard review and hardening: DB constraints, rate limiting, timing-safe login, startup config validation", OK, "Migration 20261019120000_db_integrity_checks; 55/55 checks"],
+    ["4", "Demo seed data: 3 instructors, 2 curricula, 7 chapters, 25 questions in every state", OK, "npm run db:seed; check:seed 17/17"],
+    ["5", "Automated test suite (approval + privacy) on an isolated test DB", NEXT, "scripts/smoke-test.mjs to be ported"],
     ["6", "App Dockerfile, full docker-compose, README", "To do", "DB compose file exists"],
 ], [8, 92, 18, 52])
 P("Out of scope for this step: AI question generation, exam generation and any user interface. Student exam-taking has been removed from the project.", small)
@@ -289,7 +289,8 @@ code("""
 my-capstone/
 |-- prisma/
 |   |-- schema.prisma                 data model (source of truth)
-|   `-- migrations/                   init, remove_student_role, db_integrity_checks
+|   |-- migrations/                   init, remove_student_role, db_integrity_checks
+|   `-- seed.ts                       idempotent demo data (npm run db:seed)
 |-- src/
 |   |-- app/api/                      HTTP layer - thin route handlers
 |   |   |-- auth/register|login|me/route.ts
@@ -306,6 +307,7 @@ my-capstone/
 |   |   `-- validation.ts             Zod schemas for every input
 |   `-- server/questions.ts           privacy filter + approval workflow
 |-- scripts/smoke-test.mjs            end-to-end API checks (npm run smoke)
+|-- scripts/check-seed.mjs            verifies seeded data per instructor (npm run check:seed)
 |-- docs/                             this report + its generator
 |-- docker-compose.yml   .env.example   PROCESS.md
 """)
@@ -667,6 +669,7 @@ table([
     ["INSTRUCTOR_INVITE_CODE", "Required to register (min 8 chars)", "set per deployment"],
     ["RATE_LIMIT_MAX_ATTEMPTS / _WINDOW_MINUTES", "Brute-force limits", "5 / 15"],
     ["TRUST_PROXY", "Trust X-Forwarded-For from a fronting proxy", "false (true on Vercel / behind nginx)"],
+    ["SEED_PASSWORD", "Password of the demo instructors (dev only)", "set locally; min 8 chars"],
     ["DB_PORT, POSTGRES_*", "docker-compose overrides", "5434, capstone, question_bank"],
 ], [40, 60, 70], bold_first_col=True)
 P("All configuration is read from the environment (12-factor), so the same build runs locally and in the cloud with "
@@ -677,7 +680,9 @@ table([
     ["db:up / db:down", "docker-compose up -d / docker-compose down"],
     ["db:migrate", "prisma migrate dev"],
     ["db:studio", "prisma studio (visual DB browser)"],
+    ["db:seed", "prisma db seed (runs prisma/seed.ts with tsx)"],
     ["smoke", "node scripts/smoke-test.mjs (end-to-end checks against a running server)"],
+    ["check:seed", "node --env-file=.env scripts/check-seed.mjs (per-instructor visibility of the seed data)"],
     ["typecheck / lint", "tsc --noEmit / eslint"],
 ], [40, 130], bold_first_col=True)
 code("""
@@ -685,9 +690,40 @@ npm install
 cp .env.example .env          # set JWT_SECRET and INSTRUCTOR_INVITE_CODE
 npm run db:up                 # Postgres on localhost:5434
 npm run db:migrate            # apply migrations, generate client
+npm run db:seed               # demo instructors, curricula and questions
 npm run dev                   # API on http://localhost:3100
 npm run smoke                 # in a second terminal
 """)
+
+
+H2("10.1 Demo data (seed)")
+P(C("prisma/seed.ts") + " fills a development database with realistic data covering every state the system supports. "
+  "It is <b>idempotent</b> (users, curricula and chapters are upserted by their unique keys; a question is only created if "
+  "its owner does not already have one with the same text), never deletes rows, and <b>refuses to run when "
+  "NODE_ENV=production</b>, so demo accounts cannot reach a live deployment. Running it twice was verified to create 25 "
+  "questions and then 0.")
+table([
+    ["Item", "Seeded content"],
+    ["Instructors", "Dr. Lina Nasser (lina.nasser@example.com), Dr. Omar Khalil (omar.khalil@example.com), Dr. Sara Haddad "
+                    "(sara.haddad@example.com); password from SEED_PASSWORD. Fictional people on the reserved example.com domain."],
+    ["Mathematics 101", "Algebra, Functions, Limits, Derivatives (owner: Lina)"],
+    ["Introduction to Programming", "Variables and Types, Control Flow, Functions (owner: Omar)"],
+    ["Questions (25)", "15 approved, 7 pending, 3 rejected (each with a reason); 19 shared, 6 private; difficulty 1-5; "
+                       "1-20 minutes; 8 multiple-choice; 8 approved questions with usage history (timesUsed, lastUsedAt)"],
+    ["AI-generated", "2 questions with source = AI, both still PENDING: AI output enters the same approval workflow as manual questions"],
+    ["Peer review", "Shared questions are approved by a different instructor; private ones by their owner (the only person who can see them)"],
+], [40, 130], bold_first_col=True)
+P(C("scripts/check-seed.mjs") + " logs in as each demo instructor and compares what the API returns with what the "
+  "privacy rule says they should see. <b>17 of 17 checks passed</b>:")
+table([
+    ["Instructor", "Questions visible (own + shared)", "Question bank (approved)"],
+    ["Dr. Lina Nasser", "21", "14"],
+    ["Dr. Omar Khalil", "22", "14"],
+    ["Dr. Sara Haddad", "20", "13"],
+], [50, 70, 50], bold_first_col=True)
+P("Each instructor sees a different number because each sees their own private questions but not anyone else's. The "
+  "script also confirms that no instructor ever receives another instructor's private question, that both AI questions "
+  "are still pending, that every approved question records its approver and date, and that every rejected question has a reason.")
 
 # ================= 11. VERIFICATION =================
 H1("11. Verification")
@@ -695,7 +731,7 @@ P("<b>Static checks:</b> " + C("tsc --noEmit") + " and " + C("eslint") + " repor
   C("prisma migrate diff") + " shows no drift between database and schema. <b>Dynamic checks:</b> "
   + C("scripts/smoke-test.mjs") + " registers fresh instructors and exercises every endpoint over HTTP against the "
   "running server and the real PostgreSQL database; the database-rule checks run SQL directly inside the container. "
-  "Result after sub-step 3: <b>56 of 56 checks passed</b>.")
+  "Result after sub-step 3: <b>55 of 55 checks passed</b>.")
 checks = [
     ("Auth", "Register without invite code -> 400; wrong invite code -> 403"),
     ("Auth", "Client-supplied role is ignored; account is INSTRUCTOR"),
@@ -729,7 +765,7 @@ checks = [
     ("Timing", "Unknown email vs wrong password: 56 ms vs 55 ms average (manual check)"),
 ]
 table([["Area", "Check", "Result"]] + [[a, c, PASS] for a, c in checks], [24, 128, 18])
-P("Rows group related assertions; the script reports 56 individual checks (the last two rows were verified manually). "
+P("Rows group related assertions; the script reports 55 individual checks; the last two rows were verified manually. "
   "The final section intentionally trips the invite-code limit, so the dev server must be restarted before re-running "
   "within the window. The checks will be ported to a permanent automated suite (Vitest, isolated test database) in sub-step 5.", small)
 
@@ -768,13 +804,14 @@ bullets([
     "Should an instructor be allowed to approve their <b>own shared</b> question, or should shared questions require a second instructor (four-eyes principle)?",
     "Should a rejected question be <b>editable and resubmittable</b> (REJECTED -> PENDING), and should edits to an approved question send it back for review?",
     "Should instructors be able to change visibility after approval (e.g. share a previously private question)?",
+    "Should rejections record <b>who rejected</b> the question and when? Today only approvals store the reviewer "
+    "(approvedBy / approvedAt); a rejection stores only its reason. A generic reviewedBy / reviewedAt pair would close this gap.",
 ])
 
 # ================= 13. NEXT =================
 H1("13. Next steps")
 table([
     ["Sub-step", "Deliverable"],
-    ["4 - Seed data", "prisma/seed.ts: several instructors, 2 curricula with chapters, questions in PENDING / APPROVED / REJECTED, private and shared"],
     ["5 - Automated tests", "Vitest suite on a separate test database covering the approval workflow and every privacy rule in Section 6"],
     ["6 - Cloud readiness", "Multi-stage Dockerfile (Next.js standalone output), docker-compose with app + db, README"],
     ["Later steps", "AI question generation (source = AI, still PENDING until approved); instructor-only AI exam generation by curriculum, chapters, difficulty and total duration"],
