@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  INSTRUCTOR
+  STUDENT
+}
+
+enum QuestionSource {
+  MANUAL
+  AI
+}
+
+enum QuestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Visibility {
+  PRIVATE
+  SHARED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(STUDENT)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  curricula         Curriculum[]
+  questionsCreated  Question[]   @relation("QuestionCreatedBy")
+  questionsApproved Question[]   @relation("QuestionApprovedBy")
+
+  @@map("users")
+}
+
+model Curriculum {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User       @relation(fields: [createdById], references: [id])
+  chapters  Chapter[]
+  questions Question[]
+
+  @@map("curricula")
+}
+
+model Chapter {
+  id           String   @id @default(cuid())
+  curriculumId String
+  title        String
+  // Position of the chapter inside its curriculum (1, 2, 3...).
+  orderIndex   Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  questions  Question[]
+
+  @@unique([curriculumId, orderIndex])
+  @@unique([curriculumId, title])
+  @@map("chapters")
+}
+
+model Question {
+  id                   String         @id @default(cuid())
+  content              String
+  // Optional answer choices for multiple-choice questions; null for open-ended ones.
+  options              Json?
+  answer               String
+  curriculumId         String
+  chapterId            String
+  difficulty           Int
+  estimatedTimeMinutes Int
+  source               QuestionSource @default(MANUAL)
+  createdById          String
+  status               QuestionStatus @default(PENDING)
+  approvedById         String?
+  approvedAt           DateTime?
+  rejectionReason      String?
+  visibility           Visibility     @default(PRIVATE)
+  timesUsed            Int            @default(0)
+  lastUsedAt           DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id])
+  chapter    Chapter    @relation(fields: [chapterId], references: [id])
+  createdBy  User       @relation("QuestionCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?      @relation("QuestionApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([curriculumId, chapterId])
+  @@index([status, visibility])
+  @@index([createdById])
+  @@index([difficulty])
+  @@map("questions")
+}

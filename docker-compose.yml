@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-capstone}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-capstone}
+      POSTGRES_DB: ${POSTGRES_DB:-question_bank}
+    ports:
+      # Host port 5434 avoids clashing with a locally installed Postgres on 5432.
+      - "${DB_PORT:-5434}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-capstone} -d ${POSTGRES_DB:-question_bank}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
