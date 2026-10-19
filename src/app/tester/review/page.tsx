@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Badge, Page, SignInNotice, type QuestionPage } from "../components";
-import { useSession } from "../session";
+import { Badge, Page, SignInNotice } from "../components";
+import type { QuestionPage } from "@/lib/client/types";
+import { useSession } from "@/lib/client/session";
 import s from "../tester.module.css";
 
 export default function ReviewPage() {

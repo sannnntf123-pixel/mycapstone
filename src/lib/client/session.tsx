@@ -18,6 +18,8 @@ export type LogEntry = {
 export type ApiResult<T = unknown> = { status: number; ok: boolean; data: T };
 
 type Session = {
+  /** False until the saved session has been read from storage. */
+  ready: boolean;
   token: string | null;
   user: User | null;
   setSession: (token: string, user: User) => void;
@@ -29,9 +31,10 @@ type Session = {
 };
 
 const SessionContext = createContext<Session | null>(null);
-const STORAGE_KEY = "capstone-tester-session";
+const STORAGE_KEY = "capstone-session";
 
-// Dev tool convenience: the token is kept in localStorage so a page refresh keeps you logged in.
+// The token is kept in localStorage so a refresh keeps you logged in. Any script running on the page
+// could read it (XSS risk); an httpOnly cookie session is the planned hardening for production.
 function loadStored(): { token: string; user: User } | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -53,6 +56,7 @@ function store(value: { token: string; user: User } | null) {
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [ready, setReady] = useState(false);
   const [log, setLog] = useState<LogEntry[]>([]);
   const nextId = useRef(1);
   const tokenRef = useRef<string | null>(null);
@@ -64,6 +68,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setToken(stored.token);
       setUser(stored.user);
     }
+    setReady(true);
   }, []);
 
   const setSession = useCallback((t: string, u: User) => {
@@ -116,14 +121,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         response: data,
       };
       setLog((prev) => [entry, ...prev].slice(0, 50));
+      // An expired or revoked token: drop the stale session so pages fall back to the login screen.
+      if (status === 401 && tokenRef.current && !path.startsWith("/auth/login") && !path.startsWith("/auth/register")) {
+        tokenRef.current = null;
+        setToken(null);
+        setUser(null);
+        store(null);
+      }
       return { status, ok: status >= 200 && status < 300, data: data as T };
     },
     [],
   );
 
   const value = useMemo<Session>(
-    () => ({ token, user, setSession, logout, log, clearLog: () => setLog([]), api }),
-    [token, user, setSession, logout, log, api],
+    () => ({ ready, token, user, setSession, logout, log, clearLog: () => setLog([]), api }),
+    [ready, token, user, setSession, logout, log, api],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Page } from "./components";
-import { useSession, type User } from "./session";
+import { useSession, type User } from "@/lib/client/session";
 import s from "./tester.module.css";
 
 const DEMO_EMAILS = ["lina.nasser@example.com", "omar.khalil@example.com", "sara.haddad@example.com"];

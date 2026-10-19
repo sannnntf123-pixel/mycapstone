@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Page, SignInNotice, type Curriculum } from "../components";
-import { useSession } from "../session";
+import { Page, SignInNotice } from "../components";
+import type { Curriculum } from "@/lib/client/types";
+import { useSession } from "@/lib/client/session";
 import s from "../tester.module.css";
 
 export default function CurriculaPage() {

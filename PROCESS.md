@@ -88,6 +88,40 @@ The seed covers:
   - 8 multiple-choice; 8 with usage history
   - 2 AI-generated, both still pending
 
+### Instructor interface (`/instructor`)
+
+This is the start of the real UI. Sign in at http://localhost:3100/instructor/login with a demo instructor.
+
+| Page | What it does |
+|---|---|
+| `/instructor/login` | Sign in. Shows clear messages for a wrong password and for the 15-minute lock. Already signed in → dashboard |
+| `/instructor` | Dashboard: your 10 most recent questions with status, course › chapter, difficulty, time, privacy; rejection reasons shown |
+| `/instructor/questions/new` | **Post-a-question wizard** (the student's flow): see below |
+
+The wizard has 5 steps:
+1. **Curriculum & chapter:** pick one, or create it inline. A new curriculum opens the "new chapter" form automatically, and new chapters get the next chapter number.
+2. **Problem:** the question text, then either a written answer, or multiple-choice where you click the correct option. Clicking means the answer can never fail to match an option.
+3. **Difficulty & time:** difficulty 1–5 with labels, and minutes from 1 to 600, with quick-pick buttons.
+4. **Privacy:** Private or Shared.
+5. **Review:** a summary with Edit links back to each step, then Submit. The question is created as PENDING.
+
+How it behaves:
+- Each step checks its own fields before Next, mirroring the API rules: empty fields, duplicate or empty options, no correct option, minutes out of range.
+- You can only jump forward to a step whose earlier steps are valid.
+- "Post another question" keeps the same curriculum and chapter.
+
+Code: `src/app/instructor/` (`(app)/` is the signed-in area with header and redirect). The login session and API client are in `src/lib/client/session.tsx`, shared with `/tester`. The token is stored in `localStorage`; moving to an httpOnly cookie session is the planned production hardening.
+
+These checks were run in the browser:
+- a signed-out visit redirects to login
+- a wrong password shows a message
+- the dashboard shows Lina's 10 questions
+- every wizard validation message appears
+- a new curriculum ("Physics 101") and chapter ("Kinematics") were created inline
+- submit saved exactly the reviewed values (checked in the DB)
+- "Post another" keeps the course
+- phone width (375 px) has no horizontal scroll, in light and dark mode
+
 ### API tester pages (`/tester`)
 
 Developer pages for trying the API in a browser, at http://localhost:3100/tester. They are thin clients: all security stays in the API.

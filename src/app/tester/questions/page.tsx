@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Badge, Page, SignInNotice, type Curriculum, type Question, type QuestionPage } from "../components";
-import { useSession } from "../session";
+import { Badge, Page, SignInNotice } from "../components";
+import type { Curriculum, Question, QuestionPage } from "@/lib/client/types";
+import { useSession } from "@/lib/client/session";
 import s from "../tester.module.css";
 
 const emptyFilters = { curriculumId: "", chapterId: "", difficulty: "", status: "", visibility: "", mine: false, page: "1", pageSize: "20" };

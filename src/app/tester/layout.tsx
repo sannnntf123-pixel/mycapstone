@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SessionProvider } from "./session";
+import { SessionProvider } from "@/lib/client/session";
 import { TopBar } from "./components";
 import s from "./tester.module.css";
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Page } from "../components";
-import { useSession } from "../session";
+import { useSession } from "@/lib/client/session";
 import s from "../tester.module.css";
 
 const presets = [
