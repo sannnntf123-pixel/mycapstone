@@ -209,6 +209,7 @@ async function main() {
         approvedById: q.approvedBy ? userIds[q.approvedBy] : null,
         approvedAt: q.approvedBy ? daysAgo((q.lastUsedDaysAgo ?? 0) + 10) : null,
         rejectionReason: q.rejectionReason ?? null,
+        rejectedAt: q.status === "REJECTED" ? daysAgo(5) : null,
         timesUsed: q.timesUsed ?? 0,
         lastUsedAt: q.lastUsedDaysAgo !== undefined ? daysAgo(q.lastUsedDaysAgo) : null,
       },

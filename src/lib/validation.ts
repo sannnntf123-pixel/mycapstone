@@ -38,7 +38,7 @@ export const createQuestionSchema = z.object({
 });
 
 export const rejectQuestionSchema = z.object({
-  reason: z.string().trim().min(1).optional(),
+  reason: z.string({ required_error: "A rejection reason is required" }).trim().min(1, "A rejection reason is required"),
 });
 
 // Query strings arrive as text, so numbers are coerced.

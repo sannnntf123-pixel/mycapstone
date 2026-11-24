@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession, type User } from "@/lib/client/session";
 import { describeError } from "@/lib/client/types";
@@ -75,6 +76,9 @@ export default function LoginPage() {
             {busy ? "Signing in…" : "Sign in"}
           </button>
         </form>
+        <p className={s.switchAuth}>
+          New instructor? <Link href="/instructor/signup">Create an account</Link>
+        </p>
       </div>
     </div>
   );

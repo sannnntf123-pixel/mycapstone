@@ -101,14 +101,17 @@ check("other instructor sees shared, not private", bIds.includes(q2.id) && !bIds
 check("visibility=PRIVATE filter cannot reveal others' questions", (await call("GET", `/questions?curriculumId=${cur.data.id}&visibility=PRIVATE`, { token: B.token })).data.items.length === 0);
 check("other instructor GET private -> 404", (await call("GET", `/questions/${q1.id}`, { token: B.token })).status === 404);
 check("other instructor approve private -> 404", (await call("POST", `/questions/${q1.id}/approve`, { token: B.token })).status === 404);
-check("other instructor reject private -> 404", (await call("POST", `/questions/${q1.id}/reject`, { token: B.token })).status === 404);
+check("other instructor reject private -> 404", (await call("POST", `/questions/${q1.id}/reject`, { token: B.token, body: { reason: "x" } })).status === 404);
 
 // --- approval workflow ---
 const ap = await call("POST", `/questions/${q2.id}/approve`, { token: B.token });
 check("approve records approver + time", ap.status === 200 && ap.data.status === "APPROVED" && ap.data.approvedBy?.id === B.user.id && ap.data.approvedAt, ap);
 check("re-approve -> 409", (await call("POST", `/questions/${q2.id}/approve`, { token: A.token })).status === 409);
+check("reject without reason -> 400", (await call("POST", `/questions/${q1.id}/reject`, { token: A.token })).status === 400);
+check("reject with blank reason -> 400", (await call("POST", `/questions/${q1.id}/reject`, { token: A.token, body: { reason: "   " } })).status === 400);
 const rj = await call("POST", `/questions/${q1.id}/reject`, { token: A.token, body: { reason: "Too easy" } });
 check("owner rejects with reason", rj.status === 200 && rj.data.status === "REJECTED" && rj.data.rejectionReason === "Too easy" && !rj.data.approvedBy, rj);
+check("reject records rejecter + time", rj.data.rejectedBy?.id === A.user.id && rj.data.rejectedAt, rj);
 check("approve a rejected question -> 409", (await call("POST", `/questions/${q1.id}/approve`, { token: A.token })).status === 409);
 
 // --- bank & filters ---

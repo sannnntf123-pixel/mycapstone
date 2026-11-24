@@ -16,6 +16,7 @@ const questionInclude = {
   chapter: { select: { id: true, title: true, orderIndex: true } },
   createdBy: { select: { id: true, name: true } },
   approvedBy: { select: { id: true, name: true } },
+  rejectedBy: { select: { id: true, name: true } },
 } satisfies Prisma.QuestionInclude;
 
 export async function createQuestion(
@@ -87,7 +88,7 @@ export async function getVisibleQuestion(user: SessionUser, id: string) {
 async function review(
   user: SessionUser,
   id: string,
-  decision: { status: "APPROVED" } | { status: "REJECTED"; reason?: string },
+  decision: { status: "APPROVED" } | { status: "REJECTED"; reason: string },
 ) {
   const question = await getVisibleQuestion(user, id);
   if (question.status !== "PENDING") {
@@ -98,7 +99,7 @@ async function review(
   const data: Prisma.QuestionUncheckedUpdateManyInput =
     decision.status === "APPROVED"
       ? { status: "APPROVED", approvedById: user.id, approvedAt: new Date(), rejectionReason: null }
-      : { status: "REJECTED", rejectionReason: decision.reason ?? null };
+      : { status: "REJECTED", rejectedById: user.id, rejectedAt: new Date(), rejectionReason: decision.reason };
 
   const result = await prisma.question.updateMany({ where: { id, status: "PENDING" }, data });
   if (result.count === 0) throw conflict("Question was reviewed by someone else");
@@ -109,5 +110,5 @@ async function review(
 export const approveQuestion = (user: SessionUser, id: string) =>
   review(user, id, { status: "APPROVED" });
 
-export const rejectQuestion = (user: SessionUser, id: string, reason?: string) =>
+export const rejectQuestion = (user: SessionUser, id: string, reason: string) =>
   review(user, id, { status: "REJECTED", reason });

@@ -15,11 +15,13 @@ export type Question = {
   timesUsed: number;
   lastUsedAt: string | null;
   approvedAt: string | null;
+  rejectedAt: string | null;
   createdAt: string;
   curriculum: { id: string; name: string };
   chapter: { id: string; title: string; orderIndex: number };
   createdBy: { id: string; name: string };
   approvedBy: { id: string; name: string } | null;
+  rejectedBy: { id: string; name: string } | null;
 };
 
 export type QuestionPage = { items: Question[]; total: number; page: number; pageSize: number };

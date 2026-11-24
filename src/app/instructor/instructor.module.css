@@ -630,3 +630,20 @@
   width: 100%;
   max-width: 400px;
 }
+
+.switchAuth {
+  margin: 20px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.switchAuth a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.switchAuth a:hover {
+  text-decoration: underline;
+}

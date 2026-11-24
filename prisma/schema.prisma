@@ -40,6 +40,7 @@ model User {
   curricula         Curriculum[]
   questionsCreated  Question[]   @relation("QuestionCreatedBy")
   questionsApproved Question[]   @relation("QuestionApprovedBy")
+  questionsRejected Question[]   @relation("QuestionRejectedBy")
 
   @@map("users")
 }
@@ -96,6 +97,8 @@ model Question {
   approvedById         String?
   approvedAt           DateTime?
   rejectionReason      String?
+  rejectedById         String?
+  rejectedAt           DateTime?
   visibility           Visibility     @default(PRIVATE)
   timesUsed            Int            @default(0)
   lastUsedAt           DateTime?
@@ -107,6 +110,7 @@ model Question {
   chapter    Chapter    @relation(fields: [chapterId, curriculumId], references: [id, curriculumId])
   createdBy  User       @relation("QuestionCreatedBy", fields: [createdById], references: [id])
   approvedBy User?      @relation("QuestionApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy User?      @relation("QuestionRejectedBy", fields: [rejectedById], references: [id])
 
   @@index([curriculumId, chapterId])
   @@index([status, visibility])
