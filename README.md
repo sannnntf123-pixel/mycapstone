@@ -31,6 +31,20 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Create a hosted PostgreSQL database (for example Neon, Supabase or Railway) and copy its connection string.
+2. In the Vercel project's **Settings › Environment Variables**, add for Production (and Preview if you use it):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_URL` | The hosted database's connection string (never `localhost`) |
+   | `JWT_SECRET` | A random string of 32+ characters (`openssl rand -base64 32`) |
+   | `INSTRUCTOR_INVITE_CODE` | The code instructors need to sign up (8+ characters) |
+   | `ANTHROPIC_API_KEY` | Optional: enables AI question generation |
+   | `AI_FAKE` | Optional: `true` for sample AI drafts without a key |
+
+3. Redeploy. The `vercel-build` script generates the Prisma client and runs `prisma migrate deploy`, so the database tables are created on every deploy.
+4. Optional demo data: from your machine, run the seed against the hosted database (it uses `SEED_PASSWORD` from your local `.env`):
+
+   ```bash
+   read -rs "DB?Hosted DATABASE_URL: " && DATABASE_URL="$DB" npx prisma db seed; unset DB
+   ```
