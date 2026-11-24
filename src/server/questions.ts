@@ -1,4 +1,5 @@
-import type { Prisma } from "@prisma/client";
+import type { Major, Prisma } from "@prisma/client";
+import { majorLabel } from "@/lib/majors";
 import { prisma } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/auth";
 import { badRequest, conflict, forbidden, notFound } from "@/lib/errors";
@@ -12,18 +13,32 @@ export function visibleToInstructor(userId: string): Prisma.QuestionWhereInput {
 }
 
 // Who may approve or reject a pending question:
-// - shared questions are peer-reviewed: any instructor except the author;
+// - shared questions are peer-reviewed by another instructor WITH THE SAME MAJOR as the
+//   author (a chemist doesn't judge a computer-science question);
 // - private questions are visible only to their author, so the author reviews them.
-export function canReview(user: SessionUser, q: { createdById: string; visibility: string }) {
-  return q.visibility === "PRIVATE" ? q.createdById === user.id : q.createdById !== user.id;
+type ReviewTarget = { createdById: string; visibility: string; createdBy: { major: Major | null } };
+
+export function reviewProblem(user: SessionUser, reviewerMajor: Major | null, q: ReviewTarget): string | null {
+  if (q.visibility === "PRIVATE") return q.createdById === user.id ? null : "Only the author can review a private question";
+  if (q.createdById === user.id) return "Shared questions must be reviewed by another instructor";
+  if (!reviewerMajor) return "Add your major to your profile before reviewing shared questions";
+  if (q.createdBy.major !== reviewerMajor) {
+    return `Only ${majorLabel(q.createdBy.major)} instructors can review this question`;
+  }
+  return null;
 }
 
-export function reviewQueueWhere(user: SessionUser): Prisma.QuestionWhereInput {
+export async function majorOf(userId: string): Promise<Major | null> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { major: true } });
+  return u?.major ?? null;
+}
+
+export function reviewQueueWhere(user: SessionUser, major: Major | null): Prisma.QuestionWhereInput {
   return {
     status: "PENDING",
     OR: [
       { createdById: user.id, visibility: "PRIVATE" },
-      { createdById: { not: user.id }, visibility: "SHARED" },
+      ...(major ? [{ createdById: { not: user.id }, visibility: "SHARED" as const, createdBy: { major } }] : []),
     ],
   };
 }
@@ -31,7 +46,7 @@ export function reviewQueueWhere(user: SessionUser): Prisma.QuestionWhereInput {
 const questionInclude = {
   curriculum: { select: { id: true, name: true } },
   chapter: { select: { id: true, title: true, orderIndex: true } },
-  createdBy: { select: { id: true, name: true } },
+  createdBy: { select: { id: true, name: true, major: true } },
   approvedBy: { select: { id: true, name: true } },
   rejectedBy: { select: { id: true, name: true } },
 } satisfies Prisma.QuestionInclude;
@@ -111,9 +126,8 @@ async function review(
   if (question.status !== "PENDING") {
     throw conflict(`Question is already ${question.status.toLowerCase()}`);
   }
-  if (!canReview(user, question)) {
-    throw forbidden("Shared questions must be reviewed by another instructor");
-  }
+  const problem = reviewProblem(user, await majorOf(user.id), question);
+  if (problem) throw forbidden(problem);
 
   // Conditional update guards against two instructors reviewing at the same moment.
   const data: Prisma.QuestionUncheckedUpdateManyInput =
@@ -135,7 +149,8 @@ export const rejectQuestion = (user: SessionUser, id: string, reason: string) =>
 
 /** Pending questions this instructor may review, oldest first. */
 export async function listReviewQueue(user: SessionUser, page: number, pageSize: number) {
-  const where = reviewQueueWhere(user);
+  const major = await majorOf(user.id);
+  const where = reviewQueueWhere(user, major);
   const [items, total] = await prisma.$transaction([
     prisma.question.findMany({
       where,
@@ -146,7 +161,7 @@ export async function listReviewQueue(user: SessionUser, page: number, pageSize:
     }),
     prisma.question.count({ where }),
   ]);
-  return { items, total, page, pageSize };
+  return { items, total, page, pageSize, major };
 }
 
 /**

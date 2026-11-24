@@ -1,5 +1,6 @@
 "use client";
 
+import { MAJORS } from "@/lib/majors";
 import { useState } from "react";
 import { Page } from "./components";
 import { useSession, type User } from "@/lib/client/session";
@@ -14,7 +15,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState(DEMO_EMAILS[0]);
   const [password, setPassword] = useState("");
   const [reg, setReg] = useState({
-    name: "", email: "", password: "", inviteCode: "", major: "", degree: "DOCTORATE", university: "", courses: "",
+    name: "", email: "", password: "", inviteCode: "", major: "MATHEMATICS", degree: "DOCTORATE", university: "", courses: "",
   });
   const [message, setMessage] = useState("");
 
@@ -77,7 +78,7 @@ export default function SignInPage() {
           Needs the invite code (<code>INSTRUCTOR_INVITE_CODE</code>). Five wrong codes block registration for 15 minutes.
         </p>
         <form className={s.form} onSubmit={register}>
-          {(["name", "email", "password", "inviteCode", "major", "university", "courses"] as const).map((k) => (
+          {(["name", "email", "password", "inviteCode", "university", "courses"] as const).map((k) => (
             <label key={k} className={s.field}>
               {k === "inviteCode" ? "Invite code" : k === "courses" ? "Courses (comma-separated)" : k[0].toUpperCase() + k.slice(1)}
               <input
@@ -87,6 +88,16 @@ export default function SignInPage() {
               />
             </label>
           ))}
+          <label className={s.field}>
+            Major
+            <select value={reg.major} onChange={(e) => setReg({ ...reg, major: e.target.value })}>
+              {MAJORS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className={s.field}>
             Degree
             <select value={reg.degree} onChange={(e) => setReg({ ...reg, degree: e.target.value })}>

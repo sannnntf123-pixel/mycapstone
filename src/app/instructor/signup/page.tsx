@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/Icon";
+import { MAJORS } from "@/lib/majors";
 import { useSession, type User } from "@/lib/client/session";
 import { describeError } from "@/lib/client/types";
 import { AuthShell, FormError, PasswordInput } from "../_components/AuthShell";
@@ -221,15 +222,19 @@ export default function SignupPage() {
             <label className={s.label} htmlFor="major">
               Major
             </label>
-            <input
-              id="major"
-              className={s.input}
-              placeholder="e.g. Mathematics"
-              maxLength={100}
-              value={form.major}
-              onChange={set("major")}
-              required
-            />
+            <select id="major" className={s.select} value={form.major} onChange={set("major")} aria-describedby="major-help" required>
+              <option value="" disabled>
+                Choose your major
+              </option>
+              {MAJORS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <div id="major-help" className={s.hint}>
+              You&apos;ll review shared questions from instructors in the same major.
+            </div>
           </div>
           <div className={s.field}>
             <label className={s.label} htmlFor="degree">

@@ -28,6 +28,25 @@ enum ExamStatus {
   FINAL
 }
 
+// Keep in sync with src/lib/majors.ts.
+enum Major {
+  MATHEMATICS
+  COMPUTER_SCIENCE
+  PHYSICS
+  CHEMISTRY
+  BIOLOGY
+  ENGINEERING
+  MEDICINE
+  PHARMACY
+  BUSINESS
+  ECONOMICS
+  LANGUAGES
+  EDUCATION
+  PSYCHOLOGY
+  LAW
+  ARTS
+}
+
 enum Degree {
   BACHELOR
   MASTER
@@ -48,7 +67,8 @@ model User {
   role         Role     @default(INSTRUCTOR)
   // Instructor profile, collected at sign-up. Nullable because accounts created
   // before sign-up asked for it have none; the register API requires all of it.
-  major        String?
+  // Shared questions are reviewed only by another instructor with the same major.
+  major        Major?
   degree       Degree?
   university   String?
   courses      String[] @default([])

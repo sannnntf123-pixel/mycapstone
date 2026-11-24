@@ -11,7 +11,7 @@ const features: { icon: IconName; title: string; body: string }[] = [
   {
     icon: "shield",
     title: "Reviewed before use",
-    body: "Nothing enters the bank until it's approved, and shared questions are approved by another instructor. Rejections always come with a reason.",
+    body: "Nothing enters the bank until it's approved, and shared questions are approved by another instructor in the same major. Rejections always come with a reason.",
   },
   {
     icon: "lock",
@@ -22,7 +22,7 @@ const features: { icon: IconName; title: string; body: string }[] = [
 
 const steps = [
   { title: "Write", body: "A guided five-step form walks you from course to answer." },
-  { title: "Review", body: "A colleague approves a shared question, or tells you what to fix." },
+  { title: "Review", body: "A colleague in your major approves a shared question, or tells you what to fix." },
   { title: "Reuse", body: "Approved questions join the bank, ready for your next exam." },
 ];
 

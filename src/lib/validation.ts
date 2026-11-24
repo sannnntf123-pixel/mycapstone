@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAJOR_VALUES } from "./majors";
 
 export const registerSchema = z.object({
   email: z.string().email().max(254).toLowerCase(),
@@ -9,7 +10,7 @@ export const registerSchema = z.object({
     .refine((p) => new TextEncoder().encode(p).length <= 72, "Password must be at most 72 bytes"),
   name: z.string().trim().min(1).max(100),
   inviteCode: z.string().min(1, "An instructor invite code is required"),
-  major: z.string().trim().min(1, "Major is required").max(100),
+  major: z.enum(MAJOR_VALUES, { errorMap: () => ({ message: "Choose your major from the list" }) }),
   degree: z.enum(["BACHELOR", "MASTER", "DOCTORATE", "OTHER"], {
     errorMap: () => ({ message: "Choose your highest degree" }),
   }),

@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 
 const BASE = process.env.API_URL ?? "http://localhost:3100/api";
 const INVITE = process.env.INSTRUCTOR_INVITE_CODE ?? "capstone-instructor";
-const PROFILE = { major: "Mathematics", degree: "DOCTORATE", university: "Test University", courses: ["Calculus I"] };
+const PROFILE = { major: "MATHEMATICS", degree: "DOCTORATE", university: "Test University", courses: ["Calculus I"] };
 const MAX_ATTEMPTS = Number(process.env.RATE_LIMIT_MAX_ATTEMPTS ?? 5);
 const DB_CONTAINER = process.env.DB_CONTAINER ?? "my-capstone-db-1";
 const run = Date.now();
@@ -49,6 +49,7 @@ const reg = (name, extra = {}) =>
 // --- registration & login ---
 const noCode = await reg("nocode", { inviteCode: undefined });
 check("register without profile -> 400", (await reg("noprofile", { major: undefined, degree: undefined, university: undefined, courses: undefined })).status === 400);
+check("register with a major not on the list -> 400", (await reg("badmajor", { major: "Underwater Basket Weaving" })).status === 400);
 check("register with no courses -> 400", (await reg("nocourses", { courses: [] })).status === 400);
 check("register with unknown degree -> 400", (await reg("baddegree", { degree: "WIZARD" })).status === 400);
 check("register without invite code -> 400", noCode.status === 400, noCode);
@@ -133,6 +134,13 @@ const aShared = await mk(A.token, { visibility: "SHARED" });
 const aPrivate = await mk(A.token, { visibility: "PRIVATE" });
 const bShared = await mk(B.token, { visibility: "SHARED" });
 const bPriv = await mk(B.token, { visibility: "PRIVATE" });
+// Same-major rule: a Chemistry instructor can't judge a Mathematics question.
+const Chem = (await reg("chem", { major: "CHEMISTRY" })).data;
+const chemTry = await call("POST", `/questions/${aShared.id}/approve`, { token: Chem.token });
+check("different major can't approve a shared question -> 403", chemTry.status === 403 && /Mathematics/.test(chemTry.data.error), chemTry.data);
+check("different major can't reject it either -> 403", (await call("POST", `/questions/${aShared.id}/reject`, { token: Chem.token, body: { reason: "x" } })).status === 403);
+const chemQueue = (await call("GET", "/questions/review?pageSize=100", { token: Chem.token })).data;
+check("review queue hides other majors' shared questions", chemQueue.major === "CHEMISTRY" && !chemQueue.items.some((q) => q.id === aShared.id || q.id === bShared.id), chemQueue.major);
 check("author can't approve their own shared question -> 403", (await call("POST", `/questions/${aShared.id}/approve`, { token: A.token })).status === 403);
 check("author can't reject their own shared question -> 403", (await call("POST", `/questions/${aShared.id}/reject`, { token: A.token, body: { reason: "x" } })).status === 403);
 const queue = (await call("GET", "/questions/review?pageSize=100", { token: A.token })).data;

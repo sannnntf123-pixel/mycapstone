@@ -443,7 +443,7 @@ export default function GenerateWithAiPage() {
                     onChange={(e) => setVisibility(e.target.value as "PRIVATE" | "SHARED")}
                     aria-label="Visibility of the submitted questions"
                   >
-                    <option value="SHARED">Shared (a colleague reviews)</option>
+                    <option value="SHARED">Shared (a colleague in your major reviews)</option>
                     <option value="PRIVATE">Private (you review)</option>
                   </select>
                 </span>

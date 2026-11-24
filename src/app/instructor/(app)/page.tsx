@@ -67,7 +67,7 @@ export default function DashboardPage() {
     const backToReview = visibility === "SHARED" && q.status === "APPROVED" && q.approvedBy?.id === user?.id;
     if (
       backToReview &&
-      !confirm("You approved this question yourself. Sharing it sends it back for review by another instructor. Continue?")
+      !confirm("You approved this question yourself. Sharing it sends it back for review by another instructor in your major. Continue?")
     )
       return;
     setBusyId(q.id);
@@ -112,7 +112,7 @@ export default function DashboardPage() {
           <p className={s.eyebrow}>{greeting()},</p>
           <h1 className={s.pageTitle}>{user?.name.match(/^(dr|prof)\.?\s/i) ? user.name : firstName}</h1>
           <p className={s.subtitle}>
-            Here&apos;s where your questions stand. Shared questions are approved by another instructor; private ones by you.
+            Here&apos;s where your questions stand. Shared questions are approved by another instructor in your major; private ones by you.
           </p>
         </div>
         <Link href="/instructor/questions/new" className={s.button}>

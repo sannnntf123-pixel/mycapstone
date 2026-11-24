@@ -19,18 +19,24 @@ const prisma = new PrismaClient();
 const instructors = {
   lina: {
     email: "lina.nasser@example.com", name: "Dr. Lina Nasser",
-    major: "Mathematics", degree: "DOCTORATE", university: "American University of Beirut",
+    major: "MATHEMATICS", degree: "DOCTORATE", university: "American University of Beirut",
     courses: ["Calculus I", "Linear Algebra"],
   },
   omar: {
     email: "omar.khalil@example.com", name: "Dr. Omar Khalil",
-    major: "Computer Science", degree: "DOCTORATE", university: "Lebanese University",
+    major: "COMPUTER_SCIENCE", degree: "DOCTORATE", university: "Lebanese University",
     courses: ["Introduction to Programming", "Data Structures"],
   },
   sara: {
     email: "sara.haddad@example.com", name: "Dr. Sara Haddad",
-    major: "Applied Mathematics", degree: "MASTER", university: "Beirut Arab University",
+    major: "MATHEMATICS", degree: "MASTER", university: "Beirut Arab University",
     courses: ["Mathematics 101", "Statistics"],
+  },
+  // A second Computer Science instructor, so Omar's shared questions have a same-major reviewer.
+  rami: {
+    email: "rami.saad@example.com", name: "Dr. Rami Saad",
+    major: "COMPUTER_SCIENCE", degree: "DOCTORATE", university: "Lebanese American University",
+    courses: ["Data Structures", "Algorithms"],
   },
 } as const;
 type Who = keyof typeof instructors;
@@ -75,7 +81,7 @@ const questions: SeedQuestion[] = [
   // ---- Mathematics 101 / Algebra ----
   { owner: "lina", curriculum: M, chapter: "Algebra", content: "Solve for x: 2x + 6 = 14.",
     options: ["x = 2", "x = 4", "x = 6", "x = 10"], answer: "x = 4", difficulty: 1, minutes: 2,
-    visibility: "SHARED", status: "APPROVED", approvedBy: "omar", timesUsed: 3, lastUsedDaysAgo: 20 },
+    visibility: "SHARED", status: "APPROVED", approvedBy: "sara", timesUsed: 3, lastUsedDaysAgo: 20 },
   { owner: "lina", curriculum: M, chapter: "Algebra", content: "Factor x^2 - 5x + 6.",
     answer: "(x - 2)(x - 3)", difficulty: 2, minutes: 4,
     visibility: "SHARED", status: "APPROVED", approvedBy: "sara", timesUsed: 1, lastUsedDaysAgo: 45 },
@@ -88,7 +94,7 @@ const questions: SeedQuestion[] = [
   // ---- Mathematics 101 / Functions ----
   { owner: "omar", curriculum: M, chapter: "Functions", content: "If f(x) = 3x - 2, what is f(4)?",
     options: ["8", "10", "12", "14"], answer: "10", difficulty: 1, minutes: 2,
-    visibility: "SHARED", status: "APPROVED", approvedBy: "lina", timesUsed: 5, lastUsedDaysAgo: 7 },
+    visibility: "SHARED", status: "APPROVED", approvedBy: "rami", timesUsed: 5, lastUsedDaysAgo: 7 },
   { owner: "lina", curriculum: M, chapter: "Functions", content: "What is the domain of f(x) = 1 / (x - 3)?",
     answer: "All real numbers except x = 3", difficulty: 2, minutes: 3,
     visibility: "SHARED", status: "PENDING" },
@@ -102,7 +108,7 @@ const questions: SeedQuestion[] = [
   // ---- Mathematics 101 / Limits ----
   { owner: "sara", curriculum: M, chapter: "Limits", content: "Evaluate the limit of (x^2 - 9) / (x - 3) as x approaches 3.",
     answer: "6", difficulty: 3, minutes: 6,
-    visibility: "SHARED", status: "APPROVED", approvedBy: "omar", timesUsed: 2, lastUsedDaysAgo: 30 },
+    visibility: "SHARED", status: "APPROVED", approvedBy: "lina", timesUsed: 2, lastUsedDaysAgo: 30 },
   { owner: "lina", curriculum: M, chapter: "Limits", content: "Evaluate the limit of sin(x) / x as x approaches 0.",
     options: ["0", "1", "Does not exist", "Infinity"], answer: "1", difficulty: 2, minutes: 3,
     visibility: "SHARED", status: "APPROVED", approvedBy: "sara" },
@@ -113,7 +119,7 @@ const questions: SeedQuestion[] = [
   // ---- Mathematics 101 / Derivatives ----
   { owner: "lina", curriculum: M, chapter: "Derivatives", content: "Differentiate f(x) = 5x^3 - 2x + 7.",
     answer: "f'(x) = 15x^2 - 2", difficulty: 2, minutes: 4,
-    visibility: "SHARED", status: "APPROVED", approvedBy: "omar", timesUsed: 4, lastUsedDaysAgo: 14 },
+    visibility: "SHARED", status: "APPROVED", approvedBy: "sara", timesUsed: 4, lastUsedDaysAgo: 14 },
   { owner: "sara", curriculum: M, chapter: "Derivatives", content: "Find the derivative of f(x) = x^2 * e^x.",
     answer: "f'(x) = e^x (x^2 + 2x)", difficulty: 3, minutes: 7,
     visibility: "SHARED", status: "PENDING" },
@@ -128,10 +134,10 @@ const questions: SeedQuestion[] = [
   // ---- Introduction to Programming / Variables and Types ----
   { owner: "omar", curriculum: P, chapter: "Variables and Types", content: "Which of these is a valid Python variable name?",
     options: ["2total", "total_2", "total-2", "class"], answer: "total_2", difficulty: 1, minutes: 2,
-    visibility: "SHARED", status: "APPROVED", approvedBy: "sara", timesUsed: 6, lastUsedDaysAgo: 3 },
+    visibility: "SHARED", status: "APPROVED", approvedBy: "rami", timesUsed: 6, lastUsedDaysAgo: 3 },
   { owner: "sara", curriculum: P, chapter: "Variables and Types", content: "What is the type of the value 3 / 2 in Python 3?",
     options: ["int", "float", "str", "bool"], answer: "float", difficulty: 1, minutes: 2,
-    visibility: "SHARED", status: "APPROVED", approvedBy: "omar" },
+    visibility: "SHARED", status: "APPROVED", approvedBy: "lina" },
   { owner: "omar", curriculum: P, chapter: "Variables and Types",
     content: "Explain the difference between a mutable and an immutable type, with one Python example of each.",
     answer: "A mutable object can be changed in place (e.g. list); an immutable one cannot (e.g. tuple or str).",
@@ -139,7 +145,7 @@ const questions: SeedQuestion[] = [
   // ---- Introduction to Programming / Control Flow ----
   { owner: "omar", curriculum: P, chapter: "Control Flow", content: "How many lines does `for i in range(2, 10, 3): print(i)` print?",
     options: ["2", "3", "4", "8"], answer: "3", difficulty: 2, minutes: 3,
-    visibility: "SHARED", status: "APPROVED", approvedBy: "lina", timesUsed: 2, lastUsedDaysAgo: 21 },
+    visibility: "SHARED", status: "APPROVED", approvedBy: "rami", timesUsed: 2, lastUsedDaysAgo: 21 },
   { owner: "sara", curriculum: P, chapter: "Control Flow", content: "Write a loop that prints the even numbers from 0 to 20 inclusive.",
     answer: "for i in range(0, 21, 2): print(i)", difficulty: 2, minutes: 5,
     visibility: "SHARED", status: "PENDING" },
@@ -150,11 +156,11 @@ const questions: SeedQuestion[] = [
   // ---- Introduction to Programming / Functions ----
   { owner: "omar", curriculum: P, chapter: "Functions", content: "Write a recursive function that returns the n-th Fibonacci number.",
     answer: "def fib(n): return n if n < 2 else fib(n - 1) + fib(n - 2)", difficulty: 3, minutes: 10,
-    visibility: "SHARED", status: "APPROVED", approvedBy: "sara", timesUsed: 1, lastUsedDaysAgo: 60 },
+    visibility: "SHARED", status: "APPROVED", approvedBy: "rami", timesUsed: 1, lastUsedDaysAgo: 60 },
   { owner: "sara", curriculum: P, chapter: "Functions",
     content: "Given `def f(x=[]): x.append(1); return len(x)`, what does the second call to f() return?",
     answer: "2, because the default list is created once and shared between calls.", difficulty: 4, minutes: 8,
-    visibility: "SHARED", status: "APPROVED", approvedBy: "omar" },
+    visibility: "SHARED", status: "APPROVED", approvedBy: "lina" },
   { owner: "omar", curriculum: P, chapter: "Functions",
     content: "Analyse the time complexity of the naive recursive Fibonacci function and propose an O(n) alternative.",
     answer: "O(2^n); memoisation or an iterative loop gives O(n).", difficulty: 5, minutes: 20,

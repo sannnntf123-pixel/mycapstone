@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { notifyReviewChanged } from "@/lib/client/events";
+import { majorLabel } from "@/lib/majors";
 import { useSession } from "@/lib/client/session";
 import { describeError, DIFFICULTY_LABELS, type Question, type QuestionPage } from "@/lib/client/types";
 import s from "../../instructor.module.css";
@@ -27,12 +28,12 @@ function ago(iso: string) {
 export default function ReviewPage() {
   const { api, user } = useSession();
   const [page, setPage] = useState(1);
-  const [queue, setQueue] = useState<QuestionPage | null>(null);
+  const [queue, setQueue] = useState<(QuestionPage & { major: string | null }) | null>(null);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
 
   const load = useCallback(async () => {
-    const res = await api<QuestionPage>("GET", `/questions/review?pageSize=${PAGE_SIZE}&page=${page}`);
+    const res = await api<QuestionPage & { major: string | null }>("GET", `/questions/review?pageSize=${PAGE_SIZE}&page=${page}`);
     if (res.ok) {
       // A page emptied by reviewing: step back so the list isn't blank.
       if (res.data.items.length === 0 && page > 1) setPage(page - 1);
@@ -66,11 +67,21 @@ export default function ReviewPage() {
         <div>
           <h1 className={s.pageTitle}>Review questions</h1>
           <p className={s.subtitle}>
-            Nothing enters the question bank until it&apos;s approved. Shared questions are reviewed by another instructor; your private
-            questions are reviewed by you.
+            Nothing enters the question bank until it&apos;s approved. You review shared questions from other instructors in your major
+            {queue?.major ? ` (${majorLabel(queue.major)})` : ""}, and your own private questions.
           </p>
         </div>
       </div>
+
+      {queue && !queue.major && (
+        <div className={s.notice}>
+          <Icon name="alert" size={18} />
+          <span>
+            Your account has no major, so you can only review your own private questions. Shared questions are reviewed by
+            instructors in the author&apos;s major.
+          </span>
+        </div>
+      )}
 
       {error && (
         <div className={s.error} role="alert">
@@ -94,7 +105,7 @@ export default function ReviewPage() {
               <Icon name="checkCircle" size={24} />
             </div>
             <h3>You&apos;re all caught up</h3>
-            <p>No questions are waiting for your review. New shared questions from colleagues will appear here.</p>
+            <p>No questions are waiting for your review. New shared questions from colleagues in your major will appear here.</p>
           </div>
         </div>
       )}
