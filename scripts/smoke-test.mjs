@@ -22,7 +22,8 @@ async function call(method, path, { token, body, rawBody, headers = {} } = {}) {
     },
     body: rawBody ?? (body ? JSON.stringify(body) : undefined),
   });
-  return { status: res.status, headers: res.headers, data: await res.json() };
+  const text = await res.text(); // 204 responses have no body
+  return { status: res.status, headers: res.headers, data: text ? JSON.parse(text) : null };
 }
 
 // Runs SQL directly in the database container, bypassing the API. Returns the error text or "".
@@ -69,7 +70,7 @@ check("/auth/me returns current user", (await call("GET", "/auth/me", { token: A
 check("garbage token -> 401", (await call("GET", "/auth/me", { token: "not.a.jwt" })).status === 401);
 
 // --- anonymous access is blocked everywhere ---
-for (const path of ["/auth/me", "/curricula", "/questions", "/questions/bank"]) {
+for (const path of ["/auth/me", "/curricula", "/questions", "/questions/bank", "/exams"]) {
   check(`no token GET ${path} -> 401`, (await call("GET", path)).status === 401);
 }
 
@@ -126,6 +127,107 @@ check("bank ignores status override", bankOverride.data.items.every((q) => q.sta
 const filt = await call("GET", `/questions?curriculumId=${cur.data.id}&status=REJECTED&difficulty=3`, { token: A.token });
 check("filter by status + difficulty", filt.data.items.length === 1 && filt.data.items[0].id === q1.id);
 
+// --- review rules, review queue, visibility ---
+const mk = (token, extra) => call("POST", "/questions", { token, body: { ...base, content: `R ${Math.random()}`, answer: "a", ...extra } }).then((r) => r.data);
+const aShared = await mk(A.token, { visibility: "SHARED" });
+const aPrivate = await mk(A.token, { visibility: "PRIVATE" });
+const bShared = await mk(B.token, { visibility: "SHARED" });
+const bPriv = await mk(B.token, { visibility: "PRIVATE" });
+check("author can't approve their own shared question -> 403", (await call("POST", `/questions/${aShared.id}/approve`, { token: A.token })).status === 403);
+check("author can't reject their own shared question -> 403", (await call("POST", `/questions/${aShared.id}/reject`, { token: A.token, body: { reason: "x" } })).status === 403);
+const queue = (await call("GET", "/questions/review?pageSize=100", { token: A.token })).data;
+const qIds = queue.items.map((q) => q.id);
+check("review queue: others' shared + own private pending", qIds.includes(bShared.id) && qIds.includes(aPrivate.id), qIds);
+check("review queue: never own shared or others' private", !qIds.includes(aShared.id) && !qIds.includes(bPriv.id));
+check("review queue holds only pending questions", queue.items.every((q) => q.status === "PENDING"));
+check("no token review queue -> 401", (await call("GET", "/questions/review")).status === 401);
+
+const selfOk = await call("POST", `/questions/${aPrivate.id}/approve`, { token: A.token });
+check("author approves their own private question", selfOk.status === 200 && selfOk.data.approvedBy?.id === A.user.id, selfOk);
+const shared = await call("PATCH", `/questions/${aPrivate.id}`, { token: A.token, body: { visibility: "SHARED" } });
+check("sharing a self-approved question sends it back for review", shared.status === 200 && shared.data.visibility === "SHARED" && shared.data.status === "PENDING" && !shared.data.approvedBy, shared.data);
+check("…and it then needs another instructor", (await call("POST", `/questions/${aPrivate.id}/approve`, { token: A.token })).status === 403 &&
+  (await call("POST", `/questions/${aPrivate.id}/approve`, { token: B.token })).status === 200);
+const priv = await call("PATCH", `/questions/${q2.id}`, { token: A.token, body: { visibility: "PRIVATE" } });
+check("making a peer-approved question private keeps its approval", priv.status === 200 && priv.data.visibility === "PRIVATE" && priv.data.status === "APPROVED" && priv.data.approvedBy?.id === B.user.id, priv.data);
+check("…and hides it from others -> 404", (await call("GET", `/questions/${q2.id}`, { token: B.token })).status === 404);
+const reShare = await call("PATCH", `/questions/${q2.id}`, { token: A.token, body: { visibility: "SHARED" } });
+check("re-sharing a peer-approved question keeps it approved", reShare.data.status === "APPROVED");
+check("only the author can change visibility -> 403", (await call("PATCH", `/questions/${bShared.id}`, { token: A.token, body: { visibility: "PRIVATE" } })).status === 403);
+check("invalid visibility -> 400", (await call("PATCH", `/questions/${q2.id}`, { token: A.token, body: { visibility: "PUBLIC" } })).status === 400);
+
+// --- exam generation ---
+// A small known bank: course E with two chapters. A owns everything except one private question of B's.
+const E = (await call("POST", "/curricula", { token: A.token, body: { name: `Exams ${run}` } })).data;
+const e1 = (await call("POST", `/curricula/${E.id}/chapters`, { token: A.token, body: { title: "One", orderIndex: 1 } })).data;
+const e2 = (await call("POST", `/curricula/${E.id}/chapters`, { token: A.token, body: { title: "Two", orderIndex: 2 } })).data;
+async function bankQ(token, chapterId, difficulty, minutes, { approve = true, visibility = "SHARED" } = {}) {
+  const q = (await call("POST", "/questions", {
+    token,
+    body: { curriculumId: E.id, chapterId, difficulty, estimatedTimeMinutes: minutes, content: `E d${difficulty} ${minutes}m ${Math.random()}`, answer: "a", visibility },
+  })).data;
+  // Shared questions need a second instructor; private ones are approved by their author.
+  const reviewer = visibility === "SHARED" ? (token === A.token ? B.token : A.token) : token;
+  if (approve) await call("POST", `/questions/${q.id}/approve`, { token: reviewer });
+  return q;
+}
+const eBank = [
+  await bankQ(A.token, e1.id, 2, 10), await bankQ(A.token, e1.id, 3, 5), await bankQ(A.token, e1.id, 3, 15),
+  await bankQ(A.token, e1.id, 5, 20), await bankQ(A.token, e2.id, 3, 10), await bankQ(A.token, e2.id, 4, 5),
+];
+const bPrivate = await bankQ(B.token, e1.id, 3, 5, { visibility: "PRIVATE" });
+const aPending = await bankQ(A.token, e2.id, 3, 5, { approve: false });
+const byId = new Map(eBank.map((q) => [q.id, q]));
+
+const avail = await call("GET", `/exams/availability?curriculumId=${E.id}&difficulty=3`, { token: A.token });
+const a1 = avail.data.chapters?.find((c) => c.id === e1.id);
+check("availability counts only approved, visible, in-band questions", avail.status === 200 && a1?.approved === 4 && a1?.matching === 3 && a1?.matchingMinutes === 30, avail.data);
+
+const gen = await call("POST", "/exams", { token: A.token, body: { curriculumId: E.id, chapterIds: [e1.id, e2.id], difficulty: 3, durationMinutes: 30 } });
+const genIds = gen.data.questions?.map((q) => q.id) ?? [];
+check("generate exam -> 201 DRAFT", gen.status === 201 && gen.data.status === "DRAFT", gen);
+check("exam never exceeds the duration and fills at least 90%", gen.data.totalMinutes <= 30 && gen.data.totalMinutes >= 27, gen.data.totalMinutes);
+check("exam uses only approved questions visible to the author", genIds.length > 0 && genIds.every((id) => byId.has(id)) && !genIds.includes(bPrivate.id) && !genIds.includes(aPending.id), genIds);
+check("exam stays within one level of the target difficulty", gen.data.questions.every((q) => Math.abs(q.difficulty - 3) <= 1));
+check("exam covers every chosen chapter", new Set(gen.data.questions.map((q) => q.chapter.id)).size === 2);
+check("exam has a default title and no warnings", gen.data.title.includes(`Exams ${run}`) && gen.data.warnings.length === 0, gen.data);
+
+const hard = await call("POST", "/exams", { token: A.token, body: { curriculumId: E.id, chapterIds: [e1.id, e2.id], difficulty: 5, durationMinutes: 60 } });
+check("short bank -> exam is shorter, with an explanation", hard.status === 201 && hard.data.totalMinutes === 25 && hard.data.warnings[0]?.startsWith("Only 25 of 60 minutes"), hard.data);
+const mixed = await call("POST", "/exams", { token: A.token, body: { curriculumId: E.id, chapterIds: [e1.id], difficulty: null, durationMinutes: 45 } });
+check("mixed difficulty may use any level, one chapter only", mixed.status === 201 && mixed.data.questions.every((q) => q.chapter.id === e1.id) && mixed.data.totalMinutes <= 45, mixed.data);
+
+check("chapter from another course -> 400", (await call("POST", "/exams", { token: A.token, body: { curriculumId: E.id, chapterIds: [ch.data.id], difficulty: 3, durationMinutes: 30 } })).status === 400);
+check("duration under 5 minutes -> 400", (await call("POST", "/exams", { token: A.token, body: { curriculumId: E.id, chapterIds: [e1.id], difficulty: 3, durationMinutes: 3 } })).status === 400);
+check("other instructor cannot see the exam -> 404", (await call("GET", `/exams/${gen.data.id}`, { token: B.token })).status === 404);
+check("other instructor's exam list excludes it", !(await call("GET", "/exams", { token: B.token })).data.items.some((x) => x.id === gen.data.id));
+check("exam list shows it with totals", (await call("GET", "/exams", { token: A.token })).data.items.some((x) => x.id === gen.data.id && x.questionCount === genIds.length));
+
+const ex = `/exams/${gen.data.id}`;
+check("cannot add another instructor's private question -> 400", (await call("PATCH", ex, { token: A.token, body: { questionIds: [...genIds, bPrivate.id] } })).status === 400);
+check("cannot add a pending question -> 400", (await call("PATCH", ex, { token: A.token, body: { questionIds: [...genIds, aPending.id] } })).status === 400);
+check("duplicate question -> 400", (await call("PATCH", ex, { token: A.token, body: { questionIds: [genIds[0], genIds[0]] } })).status === 400);
+const reordered = await call("PATCH", ex, { token: A.token, body: { questionIds: [...genIds].reverse(), title: "Midterm" } });
+check("reorder and rename", reordered.status === 200 && reordered.data.title === "Midterm" && reordered.data.questions[0].id === genIds.at(-1), reordered.data);
+const alts = await call("GET", `${ex}/alternatives?replace=${genIds[0]}`, { token: A.token });
+check("alternatives exclude questions already in the exam", alts.status === 200 && alts.data.items.every((q) => !genIds.includes(q.id) && q.id !== bPrivate.id), alts.data);
+check("regenerate keeps the rules", (await call("POST", `${ex}/regenerate`, { token: A.token })).data.totalMinutes <= 30);
+
+const fin = await call("POST", `${ex}/finalize`, { token: A.token });
+const finIds = fin.data.questions?.map((q) => q.id) ?? [];
+check("finalize -> FINAL with a timestamp", fin.status === 200 && fin.data.status === "FINAL" && fin.data.finalizedAt, fin);
+const usedQ = (await call("GET", `/questions/${finIds[0]}`, { token: A.token })).data;
+check("finalize counts questions as used", usedQ.timesUsed >= 1 && usedQ.lastUsedAt, usedQ);
+check("final exam can't be edited -> 409", (await call("PATCH", ex, { token: A.token, body: { questionIds: [] } })).status === 409);
+check("final exam can't be regenerated or finalized again -> 409",
+  (await call("POST", `${ex}/regenerate`, { token: A.token })).status === 409 && (await call("POST", `${ex}/finalize`, { token: A.token })).status === 409);
+check("empty draft can't be finalized -> 400", await (async () => {
+  await call("PATCH", `/exams/${mixed.data.id}`, { token: A.token, body: { questionIds: [] } });
+  return (await call("POST", `/exams/${mixed.data.id}/finalize`, { token: A.token })).status === 400;
+})());
+check("delete exam -> 204, then 404",
+  (await call("DELETE", `/exams/${hard.data.id}`, { token: A.token })).status === 204 && (await call("GET", `/exams/${hard.data.id}`, { token: A.token })).status === 404);
+
 // --- step 3: malformed input ---
 check("malformed JSON -> 400", (await call("POST", "/questions", { token: A.token, rawBody: "{not json" })).status === 400);
 check("empty body on create -> 400", (await call("POST", "/curricula", { token: A.token, rawBody: "" })).status === 400);
@@ -138,6 +240,8 @@ check("DB rejects estimatedTimeMinutes 0", sqlError(`UPDATE questions SET "estim
 check("DB rejects APPROVED without approvedAt", sqlError(`UPDATE questions SET status = 'APPROVED' WHERE id = '${q1.id}'`).includes("questions_approval_consistency"));
 check("DB rejects approvedAt on a non-approved question", sqlError(`UPDATE questions SET "approvedAt" = now() WHERE id = '${q1.id}'`).includes("questions_approval_consistency"));
 check("DB rejects chapter from another curriculum", sqlError(`UPDATE questions SET "curriculumId" = '${other.data.id}' WHERE id = '${q1.id}'`).includes("questions_chapterId_curriculumId_fkey"));
+check("DB rejects exam duration 1 minute", sqlError(`UPDATE exams SET "durationMinutes" = 1 WHERE id = '${gen.data.id}'`).includes("exams_duration_range"));
+check("DB rejects a FINAL exam without finalizedAt", sqlError(`UPDATE exams SET "finalizedAt" = NULL WHERE id = '${gen.data.id}'`).includes("exams_final_consistency"));
 check("DB rejects chapter orderIndex 0", sqlError(`UPDATE chapters SET "orderIndex" = 0 WHERE id = '${ch.data.id}'`).includes("chapters_order_index_positive"));
 
 // --- step 3: login rate limiting ---

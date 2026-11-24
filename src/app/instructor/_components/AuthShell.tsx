@@ -7,7 +7,7 @@ import s from "../instructor.module.css";
 
 const points = [
   { icon: "layers", text: "Questions organised by course, chapter and difficulty" },
-  { icon: "shield", text: "Every question is peer-reviewed before it enters the bank" },
+  { icon: "shield", text: "Every question is approved before it enters the bank" },
   { icon: "users", text: "Keep questions private, or share them with your department" },
 ] as const;
 
@@ -21,7 +21,7 @@ export function AuthShell({ children, wide = false }: { children: React.ReactNod
           Question Bank
         </Link>
         <div className={s.authPitch}>
-          <h2>A shared bank of exam questions, reviewed by your peers.</h2>
+          <h2>A shared bank of exam questions, reviewed before they&apos;re used.</h2>
           <p>Write a question once and reuse it in every exam you set.</p>
           <ul className={s.authPoints}>
             {points.map((p) => (

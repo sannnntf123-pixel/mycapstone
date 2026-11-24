@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/auth";
-import { badRequest, conflict, notFound } from "@/lib/errors";
+import { badRequest, conflict, forbidden, notFound } from "@/lib/errors";
 import type { z } from "zod";
 import type { createQuestionSchema, listQuestionsQuery } from "@/lib/validation";
 
@@ -9,6 +9,23 @@ import type { createQuestionSchema, listQuestionsQuery } from "@/lib/validation"
 // their own questions (any status/visibility) plus anything shared.
 export function visibleToInstructor(userId: string): Prisma.QuestionWhereInput {
   return { OR: [{ createdById: userId }, { visibility: "SHARED" }] };
+}
+
+// Who may approve or reject a pending question:
+// - shared questions are peer-reviewed: any instructor except the author;
+// - private questions are visible only to their author, so the author reviews them.
+export function canReview(user: SessionUser, q: { createdById: string; visibility: string }) {
+  return q.visibility === "PRIVATE" ? q.createdById === user.id : q.createdById !== user.id;
+}
+
+export function reviewQueueWhere(user: SessionUser): Prisma.QuestionWhereInput {
+  return {
+    status: "PENDING",
+    OR: [
+      { createdById: user.id, visibility: "PRIVATE" },
+      { createdById: { not: user.id }, visibility: "SHARED" },
+    ],
+  };
 }
 
 const questionInclude = {
@@ -94,6 +111,9 @@ async function review(
   if (question.status !== "PENDING") {
     throw conflict(`Question is already ${question.status.toLowerCase()}`);
   }
+  if (!canReview(user, question)) {
+    throw forbidden("Shared questions must be reviewed by another instructor");
+  }
 
   // Conditional update guards against two instructors reviewing at the same moment.
   const data: Prisma.QuestionUncheckedUpdateManyInput =
@@ -112,3 +132,40 @@ export const approveQuestion = (user: SessionUser, id: string) =>
 
 export const rejectQuestion = (user: SessionUser, id: string, reason: string) =>
   review(user, id, { status: "REJECTED", reason });
+
+/** Pending questions this instructor may review, oldest first. */
+export async function listReviewQueue(user: SessionUser, page: number, pageSize: number) {
+  const where = reviewQueueWhere(user);
+  const [items, total] = await prisma.$transaction([
+    prisma.question.findMany({
+      where,
+      include: questionInclude,
+      orderBy: { createdAt: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.question.count({ where }),
+  ]);
+  return { items, total, page, pageSize };
+}
+
+/**
+ * Authors control who can see their questions. Making a self-approved private question
+ * shared sends it back for review, so nothing reaches the shared bank without a second
+ * instructor's approval.
+ */
+export async function setVisibility(user: SessionUser, id: string, visibility: "PRIVATE" | "SHARED") {
+  const question = await getVisibleQuestion(user, id);
+  if (question.createdById !== user.id) throw forbidden("Only the author can change who sees a question");
+  if (question.visibility === visibility) return question;
+
+  const needsPeerReview =
+    visibility === "SHARED" && question.status === "APPROVED" && question.approvedById === user.id;
+  await prisma.question.update({
+    where: { id },
+    data: needsPeerReview
+      ? { visibility, status: "PENDING", approvedById: null, approvedAt: null }
+      : { visibility },
+  });
+  return getVisibleQuestion(user, id);
+}

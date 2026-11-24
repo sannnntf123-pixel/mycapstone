@@ -101,6 +101,23 @@ const paths = {
       <path d="M12 7.5v5M12 16v.5" />
     </>
   ),
+  file: (
+    <>
+      <path d="M13.5 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8.5Z" />
+      <path d="M13.5 3.5v5h5M9 13h6M9 16.5h4" />
+    </>
+  ),
+  printer: (
+    <>
+      <path d="M7 8.5v-5h10v5M7 17H5.5A1.5 1.5 0 0 1 4 15.5v-5.5A1.5 1.5 0 0 1 5.5 8.5h13a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1-1.5 1.5H17" />
+      <rect x="7" y="13.5" width="10" height="7" rx="1" />
+    </>
+  ),
+  refresh: <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4" />,
+  arrowUp: <path d="M12 19V5m-6 6 6-6 6 6" />,
+  arrowDown: <path d="M12 5v14m6-6-6 6-6-6" />,
+  trash: <path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.9 12.1a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7M10 11v6M14 11v6" />,
+  swap: <path d="M7 4.5 3.5 8 7 11.5M3.5 8h13M17 12.5l3.5 3.5-3.5 3.5M20.5 16h-13" />,
 } as const;
 
 export type IconName = keyof typeof paths;

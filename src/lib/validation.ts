@@ -63,3 +63,40 @@ export const listQuestionsQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+// ---------- exams ----------
+const difficultyOrMixed = z.number().int().min(1).max(5).nullable();
+
+export const createExamSchema = z.object({
+  title: z.string().trim().max(150).optional(),
+  curriculumId: z.string().min(1),
+  chapterIds: z.array(z.string().min(1)).min(1, "Choose at least one chapter").max(100),
+  // null = mixed difficulty
+  difficulty: difficultyOrMixed,
+  durationMinutes: z.number().int().min(5, "An exam must be at least 5 minutes").max(600, "An exam can be at most 600 minutes"),
+});
+
+export const updateExamSchema = z
+  .object({
+    title: z.string().trim().min(1, "Give the exam a title").max(150).optional(),
+    questionIds: z.array(z.string().min(1)).max(200).optional(),
+  })
+  .refine((v) => v.title !== undefined || v.questionIds !== undefined, "Nothing to update");
+
+export const availabilityQuery = z.object({
+  curriculumId: z.string().min(1),
+  // Query strings are text: "mixed" or absent means no target.
+  difficulty: z
+    .union([z.literal("mixed"), z.coerce.number().int().min(1).max(5)])
+    .optional()
+    .transform((v) => (v === "mixed" || v === undefined ? null : v)),
+});
+
+export const updateQuestionSchema = z.object({
+  visibility: z.enum(["PRIVATE", "SHARED"]),
+});
+
+export const pageQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});

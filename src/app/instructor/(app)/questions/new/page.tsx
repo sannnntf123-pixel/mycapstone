@@ -22,7 +22,7 @@ const STEP_INTRO = [
   { title: "Where does it belong?", help: "Choose the course and chapter this question is for." },
   { title: "Write the question", help: "Write it exactly as students will see it, then give the answer." },
   { title: "How hard is it?", help: "This helps colleagues balance an exam." },
-  { title: "Who can see it?", help: "Either way, it enters the question bank only after it is approved." },
+  { title: "Who can see it?", help: "Shared questions are approved by another instructor. Private ones you approve yourself, from the Review page." },
   { title: "Review and submit", help: "Check everything. You can jump back to any step." },
 ];
 const REVIEW = STEPS.length - 1;
@@ -99,8 +99,9 @@ export default function NewQuestionPage() {
           </div>
           <h1 className={s.pageTitle}>Question submitted</h1>
           <p className={s.subtitle}>
-            It&apos;s now <span className={`${s.badge} ${s.PENDING}`}>Pending review</span>. It joins the question bank as soon as
-            a colleague approves it. We kept your course and chapter in case you&apos;re adding more.
+            It&apos;s now <span className={`${s.badge} ${s.PENDING}`}>Pending review</span>. {created.visibility === "SHARED"
+              ? "It joins the question bank once another instructor approves it."
+              : "It's private, so you review it yourself: approve it from the Review page to add it to your bank."} We kept your course and chapter in case you&apos;re adding more.
           </p>
           <div className={s.center}>
             <button className={s.button} onClick={postAnother}>
@@ -124,7 +125,7 @@ export default function NewQuestionPage() {
       <div className={s.pageHead}>
         <div>
           <h1 className={s.pageTitle}>Post a question</h1>
-          <p className={s.subtitle}>New questions are reviewed by a colleague before they enter the question bank.</p>
+          <p className={s.subtitle}>Every new question is reviewed before it enters the question bank.</p>
         </div>
       </div>
 

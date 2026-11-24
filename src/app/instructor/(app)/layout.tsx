@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon, LogoMark, type IconName } from "@/components/Icon";
+import { REVIEW_CHANGED } from "@/lib/client/events";
 import { useSession } from "@/lib/client/session";
 import s from "../instructor.module.css";
 
 const links: { href: string; label: string; icon: IconName }[] = [
   { href: "/instructor", label: "Dashboard", icon: "grid" },
   { href: "/instructor/questions/new", label: "Post a question", icon: "pencil" },
+  { href: "/instructor/review", label: "Review", icon: "shield" },
+  { href: "/instructor/exams", label: "Exams", icon: "file" },
 ];
 
 function initials(name: string) {
@@ -19,9 +22,19 @@ function initials(name: string) {
 
 // Client-side redirect for convenience only; the API enforces access on every request.
 export default function SignedInLayout({ children }: { children: React.ReactNode }) {
-  const { ready, user, logout } = useSession();
+  const { ready, user, logout, api } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const [pending, setPending] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const refresh = () =>
+      api<{ total: number }>("GET", "/questions/review?pageSize=1").then((r) => r.ok && setPending(r.data.total));
+    refresh();
+    window.addEventListener(REVIEW_CHANGED, refresh);
+    return () => window.removeEventListener(REVIEW_CHANGED, refresh);
+  }, [api, user, pathname]);
 
   useEffect(() => {
     if (ready && !user) router.replace("/instructor/login");
@@ -39,7 +52,7 @@ export default function SignedInLayout({ children }: { children: React.ReactNode
           </Link>
           <nav className={s.nav} aria-label="Main">
             {links.map((l) => {
-              const active = pathname === l.href;
+              const active = l.href === "/instructor" ? pathname === l.href : pathname.startsWith(l.href);
               return (
                 <Link
                   key={l.href}
@@ -49,6 +62,11 @@ export default function SignedInLayout({ children }: { children: React.ReactNode
                 >
                   <Icon name={l.icon} size={16} />
                   {l.label}
+                  {l.href === "/instructor/review" && !!pending && (
+                    <span className={s.navBadge} aria-label={`${pending} waiting`}>
+                      {pending > 99 ? "99+" : pending}
+                    </span>
+                  )}
                 </Link>
               );
             })}

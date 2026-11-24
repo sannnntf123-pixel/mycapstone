@@ -23,6 +23,11 @@ enum QuestionStatus {
   REJECTED
 }
 
+enum ExamStatus {
+  DRAFT
+  FINAL
+}
+
 enum Degree {
   BACHELOR
   MASTER
@@ -54,6 +59,7 @@ model User {
   questionsCreated  Question[]   @relation("QuestionCreatedBy")
   questionsApproved Question[]   @relation("QuestionApprovedBy")
   questionsRejected Question[]   @relation("QuestionRejectedBy")
+  exams             Exam[]
 
   @@map("users")
 }
@@ -69,6 +75,7 @@ model Curriculum {
   createdBy User       @relation(fields: [createdById], references: [id])
   chapters  Chapter[]
   questions Question[]
+  exams     Exam[]
 
   @@map("curricula")
 }
@@ -118,16 +125,59 @@ model Question {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  curriculum Curriculum @relation(fields: [curriculumId], references: [id])
+  curriculum  Curriculum     @relation(fields: [curriculumId], references: [id])
   // Composite key: the database itself guarantees the chapter belongs to the question's curriculum.
-  chapter    Chapter    @relation(fields: [chapterId, curriculumId], references: [id, curriculumId])
-  createdBy  User       @relation("QuestionCreatedBy", fields: [createdById], references: [id])
-  approvedBy User?      @relation("QuestionApprovedBy", fields: [approvedById], references: [id])
-  rejectedBy User?      @relation("QuestionRejectedBy", fields: [rejectedById], references: [id])
+  chapter     Chapter        @relation(fields: [chapterId, curriculumId], references: [id, curriculumId])
+  createdBy   User           @relation("QuestionCreatedBy", fields: [createdById], references: [id])
+  approvedBy  User?          @relation("QuestionApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy  User?          @relation("QuestionRejectedBy", fields: [rejectedById], references: [id])
+  examEntries ExamQuestion[]
 
   @@index([curriculumId, chapterId])
   @@index([status, visibility])
   @@index([createdById])
   @@index([difficulty])
   @@map("questions")
+}
+
+// A generated exam. It starts as a DRAFT the instructor can edit; FINAL locks it
+// and counts its questions as used (questions.timesUsed / lastUsedAt).
+// Ranges and status consistency are enforced by CHECK constraints in migration 20261124150000_exams.
+model Exam {
+  id               String     @id @default(cuid())
+  title            String
+  curriculumId     String
+  // Chapters the exam was generated from; questions may only come from these.
+  chapterIds       String[]
+  // 1..5 aims for that level (questions within one level of it); null means a mixed spread.
+  targetDifficulty Int?
+  durationMinutes  Int
+  status           ExamStatus @default(DRAFT)
+  // Notes from the last generation, e.g. "Only 35 of 60 minutes could be filled".
+  warnings         String[]   @default([])
+  createdById      String
+  finalizedAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  curriculum Curriculum     @relation(fields: [curriculumId], references: [id])
+  createdBy  User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  questions  ExamQuestion[]
+
+  @@index([createdById, createdAt])
+  @@map("exams")
+}
+
+model ExamQuestion {
+  examId     String
+  questionId String
+  // 1-based order in the exam.
+  position   Int
+
+  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@id([examId, questionId])
+  @@index([questionId])
+  @@map("exam_questions")
 }

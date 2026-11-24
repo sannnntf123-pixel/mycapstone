@@ -38,3 +38,59 @@ export function describeError(data: unknown, status: number): string {
   }
   return err.error ?? `Request failed (HTTP ${status})`;
 }
+
+// ---------- exams ----------
+export type ExamQuestion = {
+  position: number;
+  id: string;
+  content: string;
+  options: string[] | null;
+  answer: string;
+  difficulty: number;
+  estimatedTimeMinutes: number;
+  source: string;
+  visibility: string;
+  timesUsed: number;
+  chapter: { id: string; title: string; orderIndex: number };
+  createdBy: { id: string; name: string };
+  approvedBy: { id: string; name: string } | null;
+};
+
+export type Exam = {
+  id: string;
+  title: string;
+  status: "DRAFT" | "FINAL";
+  curriculum: { id: string; name: string };
+  chapters: { id: string; title: string; orderIndex: number }[];
+  targetDifficulty: number | null;
+  durationMinutes: number;
+  totalMinutes: number;
+  warnings: string[];
+  finalizedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  questions: ExamQuestion[];
+};
+
+export type ExamSummary = {
+  id: string;
+  title: string;
+  status: "DRAFT" | "FINAL";
+  curriculum: { id: string; name: string };
+  chapterCount: number;
+  targetDifficulty: number | null;
+  durationMinutes: number;
+  questionCount: number;
+  totalMinutes: number;
+  finalizedAt: string | null;
+  createdAt: string;
+};
+
+export type Availability = {
+  curriculumId: string;
+  targetDifficulty: number | null;
+  chapters: { id: string; title: string; orderIndex: number; approved: number; matching: number; matchingMinutes: number }[];
+};
+
+export const DIFFICULTY_LABELS = ["Very easy", "Easy", "Medium", "Hard", "Very hard"];
+export const difficultyLabel = (d: number | null) => (d === null ? "Mixed" : DIFFICULTY_LABELS[d - 1]);

@@ -10,8 +10,8 @@ const features: { icon: IconName; title: string; body: string }[] = [
   },
   {
     icon: "shield",
-    title: "Peer-reviewed",
-    body: "New questions wait for another instructor's approval before they enter the bank. Rejections always come with a reason.",
+    title: "Reviewed before use",
+    body: "Nothing enters the bank until it's approved, and shared questions are approved by another instructor. Rejections always come with a reason.",
   },
   {
     icon: "lock",
@@ -22,7 +22,7 @@ const features: { icon: IconName; title: string; body: string }[] = [
 
 const steps = [
   { title: "Write", body: "A guided five-step form walks you from course to answer." },
-  { title: "Review", body: "A colleague approves it, or tells you what to fix." },
+  { title: "Review", body: "A colleague approves a shared question, or tells you what to fix." },
   { title: "Reuse", body: "Approved questions join the bank, ready for your next exam." },
 ];
 
@@ -54,7 +54,7 @@ export default function Home() {
             Build exams from questions <em>your colleagues trust</em>.
           </h1>
           <p className={s.lede}>
-            A shared, peer-reviewed bank of exam questions. Write once, get it reviewed, and reuse it across every course you teach.
+            A shared bank of reviewed exam questions. Write once, get it reviewed, and reuse it across every course you teach.
           </p>
           <div className={s.ctas}>
             <Link href="/instructor/signup" className={s.primary}>

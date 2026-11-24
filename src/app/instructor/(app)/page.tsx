@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/Icon";
+import { notifyReviewChanged } from "@/lib/client/events";
 import { useSession } from "@/lib/client/session";
-import { describeError, type QuestionPage } from "@/lib/client/types";
+import { describeError, type Question, type QuestionPage } from "@/lib/client/types";
 import s from "../instructor.module.css";
 
 type Filter = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
@@ -22,8 +23,8 @@ const PAGE_SIZE = 10;
 
 const EMPTY: Record<Filter, { title: string; body: string }> = {
   ALL: { title: "No questions yet", body: "Post your first question. It will appear here while it waits for review." },
-  PENDING: { title: "Nothing waiting for review", body: "Questions you post appear here until another instructor reviews them." },
-  APPROVED: { title: "No approved questions yet", body: "Once a colleague approves one of your questions, it shows up here and in the bank." },
+  PENDING: { title: "Nothing waiting for review", body: "Questions you post appear here until they're reviewed." },
+  APPROVED: { title: "No approved questions yet", body: "Once one of your questions is approved, it shows up here and in the bank." },
   REJECTED: { title: "No rejected questions", body: "Nice. When a question is rejected, the reviewer's reason will be shown here." },
 };
 
@@ -47,6 +48,8 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const [list, setList] = useState<QuestionPage | null>(null);
   const [error, setError] = useState("");
+  const [version, setVersion] = useState(0); // bump to refresh the status counts
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   // Totals per status for the summary cards (pageSize=1: only the totals are needed).
   useEffect(() => {
@@ -57,7 +60,26 @@ export default function DashboardPage() {
         ),
       ),
     ).then(([ALL, PENDING, APPROVED, REJECTED]) => setCounts({ ALL, PENDING, APPROVED, REJECTED }));
-  }, [api]);
+  }, [api, version]);
+
+  async function toggleVisibility(q: Question) {
+    const visibility = q.visibility === "SHARED" ? "PRIVATE" : "SHARED";
+    const backToReview = visibility === "SHARED" && q.status === "APPROVED" && q.approvedBy?.id === user?.id;
+    if (
+      backToReview &&
+      !confirm("You approved this question yourself. Sharing it sends it back for review by another instructor. Continue?")
+    )
+      return;
+    setBusyId(q.id);
+    const res = await api<Question>("PATCH", `/questions/${q.id}`, { body: { visibility } });
+    setBusyId(null);
+    if (!res.ok) return setError(describeError(res.data, res.status));
+    setError("");
+    setList((cur) => (cur ? { ...cur, items: cur.items.map((x) => (x.id === q.id ? res.data : x)) } : cur));
+    if (res.data.status !== q.status) setVersion((v) => v + 1);
+    // A pending question moving between private and shared changes who reviews it.
+    if (res.data.status === "PENDING") notifyReviewChanged();
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -89,7 +111,9 @@ export default function DashboardPage() {
         <div>
           <p className={s.eyebrow}>{greeting()},</p>
           <h1 className={s.pageTitle}>{user?.name.match(/^(dr|prof)\.?\s/i) ? user.name : firstName}</h1>
-          <p className={s.subtitle}>Here&apos;s where your questions stand. New questions wait for a colleague&apos;s approval.</p>
+          <p className={s.subtitle}>
+            Here&apos;s where your questions stand. Shared questions are approved by another instructor; private ones by you.
+          </p>
         </div>
         <Link href="/instructor/questions/new" className={s.button}>
           <Icon name="plus" size={16} />
@@ -188,10 +212,27 @@ export default function DashboardPage() {
                     <Icon name="clock" size={14} />
                     {q.estimatedTimeMinutes} min
                   </span>
-                  <span className={s.metaItem}>
+                  <button
+                    type="button"
+                    className={s.visToggle}
+                    onClick={() => toggleVisibility(q)}
+                    disabled={busyId === q.id}
+                    title={q.visibility === "SHARED" ? "Shared with all instructors. Click to make private." : "Only you can see it. Click to share."}
+                    aria-label={q.visibility === "SHARED" ? "Shared. Make private" : "Private. Share with instructors"}
+                  >
                     <Icon name={q.visibility === "SHARED" ? "users" : "lock"} size={14} />
                     {q.visibility === "SHARED" ? "Shared" : "Private"}
+                  </button>
+                  <span className={s.metaItem} title={q.lastUsedAt ? `Last used ${new Date(q.lastUsedAt).toLocaleDateString()}` : undefined}>
+                    <Icon name="file" size={14} />
+                    {q.timesUsed === 0 ? "Never used" : `Used in ${q.timesUsed} exam${q.timesUsed === 1 ? "" : "s"}${q.lastUsedAt ? `, last ${ago(q.lastUsedAt)}` : ""}`}
                   </span>
+                  {q.status === "APPROVED" && q.approvedBy && (
+                    <span className={s.approver}>
+                      <Icon name="checkCircle" size={14} />
+                      Approved by {q.approvedBy.id === user?.id ? "you" : q.approvedBy.name}
+                    </span>
+                  )}
                   {q.source === "AI" && (
                     <span className={`${s.badge} ${s.plain} ${s.aiBadge}`}>
                       <Icon name="sparkles" size={12} />
