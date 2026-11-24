@@ -17,9 +17,21 @@ if (password.length < 8) {
 const prisma = new PrismaClient();
 
 const instructors = {
-  lina: { email: "lina.nasser@example.com", name: "Dr. Lina Nasser" },
-  omar: { email: "omar.khalil@example.com", name: "Dr. Omar Khalil" },
-  sara: { email: "sara.haddad@example.com", name: "Dr. Sara Haddad" },
+  lina: {
+    email: "lina.nasser@example.com", name: "Dr. Lina Nasser",
+    major: "Mathematics", degree: "DOCTORATE", university: "American University of Beirut",
+    courses: ["Calculus I", "Linear Algebra"],
+  },
+  omar: {
+    email: "omar.khalil@example.com", name: "Dr. Omar Khalil",
+    major: "Computer Science", degree: "DOCTORATE", university: "Lebanese University",
+    courses: ["Introduction to Programming", "Data Structures"],
+  },
+  sara: {
+    email: "sara.haddad@example.com", name: "Dr. Sara Haddad",
+    major: "Applied Mathematics", degree: "MASTER", university: "Beirut Arab University",
+    courses: ["Mathematics 101", "Statistics"],
+  },
 } as const;
 type Who = keyof typeof instructors;
 
@@ -152,6 +164,9 @@ const questions: SeedQuestion[] = [
     visibility: "SHARED", status: "PENDING", source: "AI" },
 ];
 
+const profile = (i: (typeof instructors)[Who]) => ({
+  major: i.major, degree: i.degree, university: i.university, courses: [...i.courses],
+});
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
 
 async function main() {
@@ -161,8 +176,8 @@ async function main() {
   for (const [key, info] of Object.entries(instructors) as [Who, (typeof instructors)[Who]][]) {
     const user = await prisma.user.upsert({
       where: { email: info.email },
-      update: { name: info.name, passwordHash },
-      create: { email: info.email, name: info.name, passwordHash, role: "INSTRUCTOR" },
+      update: { name: info.name, passwordHash, ...profile(info) },
+      create: { email: info.email, name: info.name, passwordHash, role: "INSTRUCTOR", ...profile(info) },
     });
     userIds[key] = user.id;
   }

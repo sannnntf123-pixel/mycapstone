@@ -26,6 +26,10 @@ export const POST = handle(async (req: Request) => {
       name: input.name,
       role: "INSTRUCTOR",
       passwordHash: await hashPassword(input.password),
+      major: input.major,
+      degree: input.degree,
+      university: input.university,
+      courses: input.courses,
     },
     select: { id: true, email: true, name: true, role: true },
   });

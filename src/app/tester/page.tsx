@@ -13,7 +13,9 @@ export default function SignInPage() {
   const { api, setSession, user, token } = useSession();
   const [email, setEmail] = useState(DEMO_EMAILS[0]);
   const [password, setPassword] = useState("");
-  const [reg, setReg] = useState({ name: "", email: "", password: "", inviteCode: "" });
+  const [reg, setReg] = useState({
+    name: "", email: "", password: "", inviteCode: "", major: "", degree: "DOCTORATE", university: "", courses: "",
+  });
   const [message, setMessage] = useState("");
 
   async function login(e: React.FormEvent) {
@@ -29,7 +31,9 @@ export default function SignInPage() {
 
   async function register(e: React.FormEvent) {
     e.preventDefault();
-    const res = await api<AuthResponse>("POST", "/auth/register", { body: reg });
+    // Courses are typed comma-separated here; the API takes a list.
+    const courses = reg.courses.split(",").map((c) => c.trim()).filter(Boolean);
+    const res = await api<AuthResponse>("POST", "/auth/register", { body: { ...reg, courses } });
     if (res.ok) {
       setSession(res.data.token, res.data.user);
       setMessage(`Registered and signed in as ${res.data.user.name}.`);
@@ -73,9 +77,9 @@ export default function SignInPage() {
           Needs the invite code (<code>INSTRUCTOR_INVITE_CODE</code>). Five wrong codes block registration for 15 minutes.
         </p>
         <form className={s.form} onSubmit={register}>
-          {(["name", "email", "password", "inviteCode"] as const).map((k) => (
+          {(["name", "email", "password", "inviteCode", "major", "university", "courses"] as const).map((k) => (
             <label key={k} className={s.field}>
-              {k === "inviteCode" ? "Invite code" : k[0].toUpperCase() + k.slice(1)}
+              {k === "inviteCode" ? "Invite code" : k === "courses" ? "Courses (comma-separated)" : k[0].toUpperCase() + k.slice(1)}
               <input
                 type={k === "password" ? "password" : "text"}
                 value={reg[k]}
@@ -83,6 +87,15 @@ export default function SignInPage() {
               />
             </label>
           ))}
+          <label className={s.field}>
+            Degree
+            <select value={reg.degree} onChange={(e) => setReg({ ...reg, degree: e.target.value })}>
+              <option>BACHELOR</option>
+              <option>MASTER</option>
+              <option>DOCTORATE</option>
+              <option>OTHER</option>
+            </select>
+          </label>
           <button className={s.button}>Register</button>
         </form>
       </section>

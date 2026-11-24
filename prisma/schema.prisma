@@ -23,6 +23,13 @@ enum QuestionStatus {
   REJECTED
 }
 
+enum Degree {
+  BACHELOR
+  MASTER
+  DOCTORATE
+  OTHER
+}
+
 enum Visibility {
   PRIVATE
   SHARED
@@ -34,6 +41,12 @@ model User {
   passwordHash String
   name         String
   role         Role     @default(INSTRUCTOR)
+  // Instructor profile, collected at sign-up. Nullable because accounts created
+  // before sign-up asked for it have none; the register API requires all of it.
+  major        String?
+  degree       Degree?
+  university   String?
+  courses      String[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

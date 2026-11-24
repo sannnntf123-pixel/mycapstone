@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 
 const BASE = process.env.API_URL ?? "http://localhost:3100/api";
 const INVITE = process.env.INSTRUCTOR_INVITE_CODE ?? "capstone-instructor";
+const PROFILE = { major: "Mathematics", degree: "DOCTORATE", university: "Test University", courses: ["Calculus I"] };
 const MAX_ATTEMPTS = Number(process.env.RATE_LIMIT_MAX_ATTEMPTS ?? 5);
 const DB_CONTAINER = process.env.DB_CONTAINER ?? "my-capstone-db-1";
 const run = Date.now();
@@ -41,11 +42,14 @@ function check(label, cond, extra) {
 
 const reg = (name, extra = {}) =>
   call("POST", "/auth/register", {
-    body: { email: `${name}-${run}@test.com`, password: "password123", name, inviteCode: INVITE, ...extra },
+    body: { email: `${name}-${run}@test.com`, password: "password123", name, inviteCode: INVITE, ...PROFILE, ...extra },
   });
 
 // --- registration & login ---
 const noCode = await reg("nocode", { inviteCode: undefined });
+check("register without profile -> 400", (await reg("noprofile", { major: undefined, degree: undefined, university: undefined, courses: undefined })).status === 400);
+check("register with no courses -> 400", (await reg("nocourses", { courses: [] })).status === 400);
+check("register with unknown degree -> 400", (await reg("baddegree", { degree: "WIZARD" })).status === 400);
 check("register without invite code -> 400", noCode.status === 400, noCode);
 const badCode = await reg("badcode", { inviteCode: "wrong" });
 check("register with wrong invite code -> 403", badCode.status === 403, badCode);
@@ -167,7 +171,7 @@ check("C registered for rate-limit tests", Boolean(C.token));
 const codeStatuses = [];
 for (let i = 1; i <= MAX_ATTEMPTS; i++) {
   const res = await call("POST", "/auth/register", {
-    body: { email: `guess${i}-${run}@test.com`, password: "password123", name: "guess", inviteCode: `guess-${i}` },
+    body: { email: `guess${i}-${run}@test.com`, password: "password123", name: "guess", inviteCode: `guess-${i}`, ...PROFILE },
     headers: { "x-forwarded-for": `10.1.0.${i}` }, // a fresh fake IP each time must not help
   });
   codeStatuses.push(res.status);

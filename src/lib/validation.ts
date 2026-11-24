@@ -9,6 +9,17 @@ export const registerSchema = z.object({
     .refine((p) => new TextEncoder().encode(p).length <= 72, "Password must be at most 72 bytes"),
   name: z.string().trim().min(1).max(100),
   inviteCode: z.string().min(1, "An instructor invite code is required"),
+  major: z.string().trim().min(1, "Major is required").max(100),
+  degree: z.enum(["BACHELOR", "MASTER", "DOCTORATE", "OTHER"], {
+    errorMap: () => ({ message: "Choose your highest degree" }),
+  }),
+  university: z.string().trim().min(1, "University is required").max(150),
+  courses: z
+    .array(z.string().trim().min(1).max(100))
+    .min(1, "Add at least one course you teach")
+    .max(20, "At most 20 courses")
+    // Same course typed twice (any case) is stored once.
+    .transform((list) => [...new Map(list.map((c) => [c.toLowerCase(), c])).values()]),
 });
 
 export const loginSchema = z.object({
