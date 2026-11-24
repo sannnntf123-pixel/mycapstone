@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Icon } from "@/components/Icon";
 import { useSession, type User } from "@/lib/client/session";
 import { describeError } from "@/lib/client/types";
+import { AuthShell, FormError, PasswordInput } from "../_components/AuthShell";
 import s from "../instructor.module.css";
 
 const DEGREES = [
@@ -27,7 +29,18 @@ type Form = {
   inviteCode: string;
 };
 
-const help = { margin: "6px 0 0", fontSize: 13 } as const;
+// A rough 0–4 guide for the meter; the server only enforces 8–72 bytes.
+function passwordLevel(p: string): number {
+  if (!p) return 0;
+  if (p.length < 8) return 1;
+  let score = 1;
+  if (p.length >= 12) score++;
+  if (/[a-z]/.test(p) && /[A-Z]/.test(p)) score++;
+  if (/\d/.test(p) && /[^A-Za-z0-9]/.test(p)) score++;
+  else if (/\d|[^A-Za-z0-9]/.test(p)) score += 0.5;
+  return Math.min(4, Math.floor(score));
+}
+const LEVEL_TEXT = ["At least 8 characters.", "Too short.", "Okay. Longer is stronger.", "Good password.", "Strong password."];
 
 export default function SignupPage() {
   const router = useRouter();
@@ -54,6 +67,7 @@ export default function SignupPage() {
   const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm({ ...form, [k]: e.target.value });
   const mismatch = form.confirm !== "" && form.confirm !== form.password;
+  const level = passwordLevel(form.password);
 
   // Adds whatever is typed in the course box; returns the updated list.
   function addCourse(): string[] {
@@ -85,6 +99,7 @@ export default function SignupPage() {
     const courseList = addCourse();
     if (courseList.length === 0) {
       setError("Add at least one course you teach.");
+      document.getElementById("course")?.focus();
       return;
     }
     setBusy(true);
@@ -97,191 +112,237 @@ export default function SignupPage() {
     if (res.ok) {
       setSession(res.data.token, res.data.user);
       router.replace("/instructor");
-    } else if (res.status === 403) {
-      setError("That invite code is not valid. Ask your administrator for the instructor invite code.");
-    } else if (res.status === 409) {
-      setError("An account with this email already exists. Sign in instead.");
-    } else {
-      setError(describeError(res.data, res.status));
+      return;
     }
+    if (res.status === 403) setError("That invite code is not valid. Ask your administrator for the instructor invite code.");
+    else if (res.status === 409) setError("An account with this email already exists. Sign in instead.");
+    else setError(describeError(res.data, res.status));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
-    <div className={s.loginWrap}>
-      <div className={`${s.card} ${s.loginCard} ${s.signupCard}`}>
-        <h1 className={s.pageTitle}>Create instructor account</h1>
-        <p className={s.subtitle}>Exam Question Bank</p>
-        {error && (
-          <div className={s.error} role="alert">
-            {error}
-          </div>
-        )}
-        <form onSubmit={submit}>
-          <h2 className={s.formSection}>Account</h2>
+    <AuthShell wide>
+      <h1 className={s.pageTitle}>Create your instructor account</h1>
+      <p className={s.subtitle}>It takes about a minute. Your teaching profile helps colleagues know who wrote a question.</p>
+      {error && <FormError>{error}</FormError>}
+
+      <form onSubmit={submit}>
+        <h2 className={s.formSection}>
+          <span className={s.formSectionNum}>1</span>
+          Account
+        </h2>
+        <div className={s.fieldRow}>
           <div className={s.field}>
             <label className={s.label} htmlFor="name">
               Full name
             </label>
-            <input id="name" className={s.input} autoComplete="name" maxLength={100} value={form.name} onChange={set("name")} required />
+            <input
+              id="name"
+              className={s.input}
+              autoComplete="name"
+              placeholder="Dr. Jane Doe"
+              maxLength={100}
+              value={form.name}
+              onChange={set("name")}
+              required
+            />
           </div>
           <div className={s.field}>
             <label className={s.label} htmlFor="email">
-              Email
+              Work email
             </label>
-            <input id="email" className={s.input} type="email" autoComplete="email" value={form.email} onChange={set("email")} required />
+            <input
+              id="email"
+              className={s.input}
+              type="email"
+              autoComplete="email"
+              placeholder="you@university.edu"
+              value={form.email}
+              onChange={set("email")}
+              required
+            />
           </div>
-          <div className={s.fieldRow}>
-            <div className={s.field}>
-              <label className={s.label} htmlFor="password">
-                Password
-              </label>
-              <input
-                id="password"
-                className={s.input}
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                value={form.password}
-                onChange={set("password")}
-                aria-describedby="password-help"
-                required
-              />
-              <div id="password-help" className={s.help} style={help}>
-                At least 8 characters.
-              </div>
+        </div>
+        <div className={s.fieldRow}>
+          <div className={s.field}>
+            <label className={s.label} htmlFor="password">
+              Password
+            </label>
+            <PasswordInput
+              id="password"
+              autoComplete="new-password"
+              minLength={8}
+              value={form.password}
+              onChange={set("password")}
+              aria-describedby="password-help"
+              required
+            />
+            <div className={s.strength} data-level={level} aria-hidden>
+              <span />
+              <span />
+              <span />
+              <span />
             </div>
-            <div className={s.field}>
-              <label className={s.label} htmlFor="confirm">
-                Confirm password
-              </label>
-              <input
-                id="confirm"
-                className={s.input}
-                type="password"
-                autoComplete="new-password"
-                value={form.confirm}
-                onChange={set("confirm")}
-                aria-invalid={mismatch}
-                required
-              />
-              {mismatch && <div className={s.fieldError}>Passwords do not match.</div>}
-            </div>
-          </div>
-
-          <h2 className={s.formSection}>Teaching profile</h2>
-          <div className={s.fieldRow}>
-            <div className={s.field}>
-              <label className={s.label} htmlFor="major">
-                Major
-              </label>
-              <input
-                id="major"
-                className={s.input}
-                placeholder="e.g. Mathematics"
-                maxLength={100}
-                value={form.major}
-                onChange={set("major")}
-                required
-              />
-            </div>
-            <div className={s.field}>
-              <label className={s.label} htmlFor="degree">
-                Highest degree
-              </label>
-              <select id="degree" className={s.input} value={form.degree} onChange={set("degree")} required>
-                <option value="" disabled>
-                  Choose…
-                </option>
-                {DEGREES.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
+            <div id="password-help" className={s.hint} aria-live="polite">
+              {LEVEL_TEXT[level]}
             </div>
           </div>
           <div className={s.field}>
-            <label className={s.label} htmlFor="university">
-              University you graduated from
+            <label className={s.label} htmlFor="confirm">
+              Confirm password
+            </label>
+            <PasswordInput
+              id="confirm"
+              autoComplete="new-password"
+              value={form.confirm}
+              onChange={set("confirm")}
+              aria-invalid={mismatch}
+              aria-describedby="confirm-help"
+              required
+            />
+            <div id="confirm-help" aria-live="polite">
+              {mismatch ? (
+                <div className={s.fieldError}>Passwords do not match.</div>
+              ) : form.confirm && form.confirm === form.password ? (
+                <div className={s.hint} style={{ color: "var(--ok)", display: "flex", gap: 4, alignItems: "center" }}>
+                  <Icon name="check" size={14} /> Passwords match.
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <h2 className={s.formSection}>
+          <span className={s.formSectionNum}>2</span>
+          Teaching profile
+        </h2>
+        <div className={s.fieldRow}>
+          <div className={s.field}>
+            <label className={s.label} htmlFor="major">
+              Major
             </label>
             <input
-              id="university"
+              id="major"
               className={s.input}
-              autoComplete="organization"
-              maxLength={150}
-              value={form.university}
-              onChange={set("university")}
+              placeholder="e.g. Mathematics"
+              maxLength={100}
+              value={form.major}
+              onChange={set("major")}
               required
             />
           </div>
           <div className={s.field}>
+            <label className={s.label} htmlFor="degree">
+              Highest degree
+            </label>
+            <select id="degree" className={s.select} value={form.degree} onChange={set("degree")} required>
+              <option value="" disabled>
+                Choose a degree
+              </option>
+              {DEGREES.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className={s.field}>
+          <label className={s.label} htmlFor="university">
+            University you graduated from
+          </label>
+          <input
+            id="university"
+            className={s.input}
+            autoComplete="organization"
+            placeholder="e.g. American University of Beirut"
+            maxLength={150}
+            value={form.university}
+            onChange={set("university")}
+            required
+          />
+        </div>
+        <div className={s.field}>
+          <div className={s.labelRow}>
             <label className={s.label} htmlFor="course">
               Courses you teach
             </label>
-            <div className={s.courseInput}>
-              <input
-                id="course"
-                className={s.input}
-                placeholder="e.g. Calculus I"
-                maxLength={100}
-                value={courseDraft}
-                onChange={(e) => setCourseDraft(e.target.value)}
-                onKeyDown={onCourseKey}
-                disabled={courses.length >= MAX_COURSES}
-                aria-describedby="course-help"
-              />
-              <button
-                type="button"
-                className={`${s.button} ${s.ghost}`}
-                onClick={addCourse}
-                disabled={!courseDraft.trim() || courses.length >= MAX_COURSES}
-              >
-                Add
-              </button>
-            </div>
-            <div id="course-help" className={s.help} style={help}>
-              Press Enter after each course. Add at least one.
-            </div>
             {courses.length > 0 && (
-              <ul className={s.courseChips} aria-label="Courses added">
-                {courses.map((c) => (
-                  <li key={c} className={s.courseChip}>
-                    {c}
-                    <button type="button" aria-label={`Remove ${c}`} onClick={() => setCourses(courses.filter((x) => x !== c))}>
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <span className={s.optional}>
+                {courses.length} / {MAX_COURSES}
+              </span>
             )}
           </div>
-
-          <h2 className={s.formSection}>Access</h2>
-          <div className={s.field}>
-            <label className={s.label} htmlFor="inviteCode">
-              Invite code
-            </label>
+          <div className={s.courseInput}>
             <input
-              id="inviteCode"
+              id="course"
               className={s.input}
-              autoComplete="off"
-              value={form.inviteCode}
-              onChange={set("inviteCode")}
-              aria-describedby="invite-help"
-              required
+              placeholder="Type a course and press Enter"
+              maxLength={100}
+              value={courseDraft}
+              onChange={(e) => setCourseDraft(e.target.value)}
+              onKeyDown={onCourseKey}
+              disabled={courses.length >= MAX_COURSES}
+              aria-describedby="course-help"
             />
-            <div id="invite-help" className={s.help} style={help}>
-              Accounts are for instructors only. Your administrator gives you this code.
-            </div>
+            <button
+              type="button"
+              className={`${s.button} ${s.ghost}`}
+              onClick={addCourse}
+              disabled={!courseDraft.trim() || courses.length >= MAX_COURSES}
+            >
+              <Icon name="plus" size={16} />
+              Add
+            </button>
           </div>
-          <button className={s.button} style={{ width: "100%" }} disabled={busy}>
-            {busy ? "Creating account…" : "Create account"}
-          </button>
-        </form>
-        <p className={s.switchAuth}>
-          Already have an account? <Link href="/instructor/login">Sign in</Link>
-        </p>
-      </div>
-    </div>
+          {courses.length > 0 ? (
+            <ul className={s.courseChips} aria-label="Courses added">
+              {courses.map((c) => (
+                <li key={c} className={s.courseChip}>
+                  {c}
+                  <button type="button" aria-label={`Remove ${c}`} onClick={() => setCourses(courses.filter((x) => x !== c))}>
+                    <Icon name="x" size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div id="course-help" className={s.hint}>
+              Add at least one, for example &ldquo;Calculus I&rdquo;.
+            </div>
+          )}
+        </div>
+
+        <h2 className={s.formSection}>
+          <span className={s.formSectionNum}>3</span>
+          Access
+        </h2>
+        <div className={s.field}>
+          <label className={s.label} htmlFor="inviteCode">
+            Invite code
+          </label>
+          <input
+            id="inviteCode"
+            className={s.input}
+            autoComplete="off"
+            spellCheck={false}
+            value={form.inviteCode}
+            onChange={set("inviteCode")}
+            aria-describedby="invite-help"
+            required
+          />
+          <div id="invite-help" className={s.hint}>
+            Accounts are for instructors only. Your administrator gives you this code.
+          </div>
+        </div>
+
+        <button className={`${s.button} ${s.block}`} disabled={busy} style={{ marginTop: 12 }}>
+          {busy ? "Creating your account…" : "Create account"}
+        </button>
+      </form>
+      <p className={s.switchAuth}>
+        Already have an account? <Link href="/instructor/login">Sign in</Link>
+      </p>
+    </AuthShell>
   );
 }

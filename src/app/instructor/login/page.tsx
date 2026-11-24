@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession, type User } from "@/lib/client/session";
 import { describeError } from "@/lib/client/types";
+import { AuthShell, FormError, PasswordInput } from "../_components/AuthShell";
 import s from "../instructor.module.css";
 
 export default function LoginPage() {
@@ -29,57 +30,51 @@ export default function LoginPage() {
       setSession(res.data.token, res.data.user);
       router.replace("/instructor");
     } else {
-      setError(res.status === 401 ? "Incorrect email or password." : describeError(res.data, res.status));
+      setError(res.status === 401 ? "That email and password don't match an account." : describeError(res.data, res.status));
     }
   }
 
   return (
-    <div className={s.loginWrap}>
-      <div className={`${s.card} ${s.loginCard}`}>
-        <h1 className={s.pageTitle}>Instructor sign in</h1>
-        <p className={s.subtitle}>Exam Question Bank</p>
-        {error && (
-          <div className={s.error} role="alert">
-            {error}
-          </div>
-        )}
-        <form onSubmit={submit}>
-          <div className={s.field}>
-            <label className={s.label} htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              className={s.input}
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className={s.field}>
-            <label className={s.label} htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              className={s.input}
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <button className={s.button} style={{ width: "100%" }} disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-        <p className={s.switchAuth}>
-          New instructor? <Link href="/instructor/signup">Create an account</Link>
-        </p>
-      </div>
-    </div>
+    <AuthShell>
+      <h1 className={s.pageTitle}>Welcome back</h1>
+      <p className={s.subtitle}>Sign in to manage your questions and review your colleagues&apos;.</p>
+      {error && <FormError>{error}</FormError>}
+      <form onSubmit={submit}>
+        <div className={s.field}>
+          <label className={s.label} htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            className={s.input}
+            type="email"
+            autoComplete="username"
+            placeholder="you@university.edu"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoFocus
+            required
+          />
+        </div>
+        <div className={s.field}>
+          <label className={s.label} htmlFor="password">
+            Password
+          </label>
+          <PasswordInput
+            id="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <button className={`${s.button} ${s.block}`} disabled={busy} style={{ marginTop: 8 }}>
+          {busy ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+      <p className={s.switchAuth}>
+        New here? <Link href="/instructor/signup">Create an instructor account</Link>
+      </p>
+    </AuthShell>
   );
 }

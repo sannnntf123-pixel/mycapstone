@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
 import { useSession } from "@/lib/client/session";
 import { describeError, type Curriculum, type Question } from "@/lib/client/types";
 import {
@@ -16,7 +17,14 @@ import {
 } from "./steps";
 import s from "../../../instructor.module.css";
 
-const STEPS = ["Curriculum & chapter", "Problem", "Difficulty & time", "Privacy", "Review"];
+const STEPS = ["Course & chapter", "The question", "Difficulty & time", "Visibility", "Review"];
+const STEP_INTRO = [
+  { title: "Where does it belong?", help: "Choose the course and chapter this question is for." },
+  { title: "Write the question", help: "Write it exactly as students will see it, then give the answer." },
+  { title: "How hard is it?", help: "This helps colleagues balance an exam." },
+  { title: "Who can see it?", help: "Either way, it enters the question bank only after it is approved." },
+  { title: "Review and submit", help: "Check everything. You can jump back to any step." },
+];
 const REVIEW = STEPS.length - 1;
 
 export default function NewQuestionPage() {
@@ -87,15 +95,16 @@ export default function NewQuestionPage() {
       <div className={s.card}>
         <div className={s.success}>
           <div className={s.successIcon} aria-hidden>
-            ✓
+            <Icon name="check" size={30} />
           </div>
           <h1 className={s.pageTitle}>Question submitted</h1>
           <p className={s.subtitle}>
-            It is now <span className={`${s.badge} ${s.PENDING}`}>Pending review</span> and will join the question bank once an
-            instructor approves it.
+            It&apos;s now <span className={`${s.badge} ${s.PENDING}`}>Pending review</span>. It joins the question bank as soon as
+            a colleague approves it. We kept your course and chapter in case you&apos;re adding more.
           </p>
           <div className={s.center}>
             <button className={s.button} onClick={postAnother}>
+              <Icon name="plus" size={16} />
               Post another question
             </button>
             <Link href="/instructor" className={`${s.button} ${s.quiet}`}>
@@ -112,99 +121,133 @@ export default function NewQuestionPage() {
 
   return (
     <>
-      <h1 className={s.pageTitle}>Post a question</h1>
-      <p className={s.subtitle}>New questions are reviewed by an instructor before they enter the question bank.</p>
+      <div className={s.pageHead}>
+        <div>
+          <h1 className={s.pageTitle}>Post a question</h1>
+          <p className={s.subtitle}>New questions are reviewed by a colleague before they enter the question bank.</p>
+        </div>
+      </div>
 
-      <nav className={s.stepper} aria-label="Steps">
-        {STEPS.map((label, i) => {
-          const clickable = i !== step && i <= maxReachable;
-          return (
-            <button
-              key={label}
-              type="button"
-              className={`${s.step} ${i === step ? s.stepCurrent : ""} ${i < step ? s.stepDone : ""} ${clickable ? s.stepClickable : ""}`}
-              onClick={() => clickable && setStep(i)}
-              aria-current={i === step ? "step" : undefined}
-              disabled={!clickable && i !== step}
-            >
-              <span className={s.stepDot}>{i < step ? "✓" : i + 1}</span>
-              {label}
-            </button>
-          );
-        })}
-      </nav>
+      <div className={s.wizard}>
+        <ol className={s.stepper} aria-label="Steps">
+          {STEPS.map((label, i) => {
+            const clickable = i !== step && i <= maxReachable;
+            return (
+              <li key={label}>
+                <button
+                  type="button"
+                  className={`${s.step} ${i === step ? s.stepCurrent : ""} ${i < step ? s.stepDone : ""} ${clickable ? s.stepClickable : ""}`}
+                  onClick={() => clickable && setStep(i)}
+                  aria-current={i === step ? "step" : undefined}
+                  disabled={!clickable && i !== step}
+                >
+                  <span className={s.stepDot}>{i < step ? <Icon name="check" size={14} /> : i + 1}</span>
+                  {label}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
 
-      <div className={s.card}>
-        {stepError && (
-          <div className={s.error} role="alert">
-            {stepError}
-          </div>
-        )}
-
-        {step === 0 && <CurriculumStep draft={draft} update={update} curricula={curricula} reload={reload} />}
-        {step === 1 && <ProblemStep draft={draft} update={update} />}
-        {step === 2 && <DifficultyStep draft={draft} update={update} />}
-        {step === 3 && <PrivacyStep draft={draft} update={update} />}
-        {step === REVIEW && (
-          <>
-            <h2 className={s.sectionTitle}>Review and submit</h2>
-            <p className={s.help}>Check everything before submitting. You can jump back to any step.</p>
-            {submitError && (
-              <div className={s.error} role="alert">
-                {submitError}
-              </div>
-            )}
-            <div className={s.summary}>
-              <Summary label="Curriculum & chapter" onEdit={() => setStep(0)}>
-                {curriculum?.name} › Chapter {chapter?.orderIndex}: {chapter?.title}
-              </Summary>
-              <Summary label="Problem" onEdit={() => setStep(1)}>
-                <div style={{ whiteSpace: "pre-wrap" }}>{draft.content.trim()}</div>
-                {draft.kind === "mcq" ? (
-                  <ol className={s.optionList} type="A">
-                    {draft.options.map((o, i) => (
-                      <li key={i} className={i === draft.correctIndex ? s.correct : ""}>
-                        {o.trim()}
-                        {i === draft.correctIndex ? "  ✓ correct" : ""}
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <div style={{ marginTop: 8 }}>
-                    <span className={s.summaryLabel}>Answer</span>
-                    <div style={{ whiteSpace: "pre-wrap" }}>{draft.answer.trim()}</div>
-                  </div>
-                )}
-              </Summary>
-              <Summary label="Difficulty & time" onEdit={() => setStep(2)}>
-                {draft.difficulty} / 5 ({DIFFICULTY_LABELS[(draft.difficulty ?? 1) - 1]}) · {draft.minutes} minutes
-              </Summary>
-              <Summary label="Privacy" onEdit={() => setStep(3)}>
-                {draft.visibility === "SHARED" ? "Shared with all instructors" : "Private (only you)"}
-              </Summary>
+        <div className={s.card}>
+          <div className={s.progressBar} aria-hidden>
+            <div className={s.progressLabel}>
+              <strong>{STEPS[step]}</strong>
+              <span>
+                Step {step + 1} of {STEPS.length}
+              </span>
             </div>
-          </>
-        )}
+            <div className={s.progressTrack}>
+              <span style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+            </div>
+            <div className={s.spacer} style={{ height: 20 }} />
+          </div>
 
-        <div className={s.actions}>
-          {step > 0 ? (
-            <button type="button" className={`${s.button} ${s.quiet}`} onClick={() => setStep(step - 1)}>
-              ← Back
-            </button>
-          ) : (
-            <Link href="/instructor" className={`${s.button} ${s.quiet}`}>
-              Cancel
-            </Link>
+          <div className={s.stepHead}>
+            <p className={s.stepKicker}>
+              Step {step + 1} of {STEPS.length}
+            </p>
+            <h2 className={s.stepTitle}>{STEP_INTRO[step].title}</h2>
+            <p className={s.help} style={{ margin: 0 }}>
+              {STEP_INTRO[step].help}
+            </p>
+          </div>
+
+          {stepError && (
+            <div className={s.error} role="alert">
+              <Icon name="alert" size={18} />
+              {stepError}
+            </div>
           )}
-          {step < REVIEW ? (
-            <button type="button" className={s.button} onClick={next}>
-              Next →
-            </button>
-          ) : (
-            <button type="button" className={s.button} onClick={submit} disabled={submitting}>
-              {submitting ? "Submitting…" : "Submit question"}
-            </button>
+
+          {step === 0 && <CurriculumStep draft={draft} update={update} curricula={curricula} reload={reload} />}
+          {step === 1 && <ProblemStep draft={draft} update={update} />}
+          {step === 2 && <DifficultyStep draft={draft} update={update} />}
+          {step === 3 && <PrivacyStep draft={draft} update={update} />}
+          {step === REVIEW && (
+            <>
+              {submitError && (
+                <div className={s.error} role="alert">
+                  <Icon name="alert" size={18} />
+                  {submitError}
+                </div>
+              )}
+              <div className={s.summary}>
+                <Summary label="Course & chapter" onEdit={() => setStep(0)}>
+                  {curriculum?.name} › Chapter {chapter?.orderIndex}: {chapter?.title}
+                </Summary>
+                <Summary label="The question" onEdit={() => setStep(1)}>
+                  <div style={{ whiteSpace: "pre-wrap" }}>{draft.content.trim()}</div>
+                  {draft.kind === "mcq" ? (
+                    <ol className={s.optionList}>
+                      {draft.options.map((o, i) => (
+                        <li key={i} className={i === draft.correctIndex ? `${s.correct} ${s.optionCorrect}` : ""}>
+                          <span className={s.optionLetter}>{String.fromCharCode(65 + i)}</span>
+                          {o.trim()}
+                          {i === draft.correctIndex && <Icon name="check" size={16} label="Correct answer" />}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <div style={{ marginTop: 8 }}>
+                      <span className={s.summaryLabel}>Answer</span>
+                      <div style={{ whiteSpace: "pre-wrap" }}>{draft.answer.trim()}</div>
+                    </div>
+                  )}
+                </Summary>
+                <Summary label="Difficulty & time" onEdit={() => setStep(2)}>
+                  {draft.difficulty} / 5 ({DIFFICULTY_LABELS[(draft.difficulty ?? 1) - 1]}) · {draft.minutes} minutes
+                </Summary>
+                <Summary label="Visibility" onEdit={() => setStep(3)}>
+                  {draft.visibility === "SHARED" ? "Shared with all instructors" : "Private (only you)"}
+                </Summary>
+              </div>
+            </>
           )}
+
+          <div className={s.actions}>
+            {step > 0 ? (
+              <button type="button" className={`${s.button} ${s.quiet}`} onClick={() => setStep(step - 1)}>
+                <Icon name="arrowLeft" size={16} />
+                Back
+              </button>
+            ) : (
+              <Link href="/instructor" className={`${s.button} ${s.quiet}`}>
+                Cancel
+              </Link>
+            )}
+            {step < REVIEW ? (
+              <button type="button" className={s.button} onClick={next}>
+                {step === REVIEW - 1 ? "Review" : "Continue"}
+                <Icon name="arrowRight" size={16} />
+              </button>
+            ) : (
+              <button type="button" className={s.button} onClick={submit} disabled={submitting}>
+                <Icon name="check" size={16} />
+                {submitting ? "Submitting…" : "Submit for review"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </>
@@ -216,7 +259,8 @@ function Summary({ label, onEdit, children }: { label: string; onEdit: () => voi
     <div className={s.summarySection}>
       <div className={s.summaryHead}>
         <span className={s.summaryLabel}>{label}</span>
-        <button type="button" className={s.linkButton} onClick={onEdit}>
+        <button type="button" className={s.linkButton} onClick={onEdit} aria-label={`Edit ${label.toLowerCase()}`}>
+          <Icon name="pencil" size={14} />
           Edit
         </button>
       </div>
