@@ -100,3 +100,33 @@ export const pageQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+// ---------- AI question generation ----------
+export const generateQuestionsSchema = z.object({
+  curriculumId: z.string().min(1),
+  chapterId: z.string().min(1),
+  count: z.number().int().min(1, "Ask for at least 1 question").max(10, "Ask for at most 10 questions at a time"),
+  // null = a spread of difficulties
+  difficulty: z.number().int().min(1).max(5).nullable(),
+  kind: z.enum(["written", "multiple_choice", "mixed"]),
+  focus: z.string().trim().max(300, "Keep the focus under 300 characters").optional(),
+});
+
+const draftQuestionSchema = z.object({
+  content: z.string().trim().min(1, "A question needs text").max(5000),
+  options: z
+    .array(z.string().trim().min(1, "Options can't be empty").max(500))
+    .min(2, "Multiple choice needs at least 2 options")
+    .max(8)
+    .refine((o) => new Set(o.map((x) => x.toLowerCase())).size === o.length, "Options must be different from each other")
+    .nullable(),
+  answer: z.string().trim().min(1, "A question needs an answer").max(5000),
+  difficulty: z.number().int().min(1).max(5),
+  estimatedTimeMinutes: z.number().int().min(1).max(600),
+});
+
+export const submitDraftsSchema = z.object({
+  generationId: z.string().min(1),
+  visibility: z.enum(["PRIVATE", "SHARED"]),
+  questions: z.array(draftQuestionSchema).min(1, "Choose at least one draft to submit").max(12),
+});

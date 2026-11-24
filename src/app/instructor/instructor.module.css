@@ -13,7 +13,7 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  background: var(--surface);
   backdrop-filter: saturate(1.4) blur(12px);
   -webkit-backdrop-filter: saturate(1.4) blur(12px);
   border-bottom: 1px solid var(--line);
@@ -2518,4 +2518,205 @@
 .visToggle:focus-visible {
   outline: none;
   box-shadow: var(--focus);
+}
+
+/* ==========================================================================
+   AI question generation
+   ========================================================================== */
+.modeSwitch {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.modeTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.modeTab:hover {
+  color: var(--ink);
+}
+
+.modeTab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.modeTabActive {
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.aiBanner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--ink-2);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.aiBanner svg {
+  color: var(--accent);
+  margin-top: 1px;
+}
+
+.countRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.countRow .chip {
+  min-width: 44px;
+  text-align: center;
+}
+
+.writing {
+  padding: 28px;
+  text-align: center;
+}
+
+.writingDots {
+  display: inline-flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.writingDots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s var(--ease) infinite;
+}
+
+.writingDots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.writingDots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.draftList {
+  list-style: none;
+  display: grid;
+  gap: 16px;
+}
+
+.draftCard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: opacity 0.2s var(--ease), border-color 0.2s var(--ease);
+  animation: rise 0.25s var(--ease);
+}
+
+.draftOff {
+  opacity: 0.55;
+}
+
+.draftOff .draftBody {
+  display: none;
+}
+
+.draftHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.draftHead label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.draftBody {
+  padding: 18px 20px 6px;
+}
+
+.draftWhy {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+
+.draftWhy svg {
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+.submitBar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 10;
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lg);
+}
+
+.submitBar strong {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .modeSwitch {
+    width: 100%;
+  }
+  .modeTab {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 10px;
+  }
 }

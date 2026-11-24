@@ -9,6 +9,11 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
   // Set to "true" only when running behind a proxy that sets X-Forwarded-For itself (Vercel, nginx).
   TRUST_PROXY: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
+  // AI question generation. Without a key (and without AI_FAKE) the feature reports "not set up".
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  // "true" returns canned drafts instead of calling Claude: for tests and demos, costs nothing.
+  AI_FAKE: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
+  AI_GENERATIONS_PER_HOUR: z.coerce.number().int().positive().default(20),
 });
 
 export type Env = z.infer<typeof envSchema>;

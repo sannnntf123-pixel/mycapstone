@@ -52,7 +52,12 @@ export default function SignedInLayout({ children }: { children: React.ReactNode
           </Link>
           <nav className={s.nav} aria-label="Main">
             {links.map((l) => {
-              const active = l.href === "/instructor" ? pathname === l.href : pathname.startsWith(l.href);
+              const active =
+                l.href === "/instructor"
+                  ? pathname === l.href
+                  : l.href === "/instructor/questions/new"
+                    ? pathname.startsWith("/instructor/questions")
+                    : pathname.startsWith(l.href);
               return (
                 <Link
                   key={l.href}

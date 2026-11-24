@@ -228,6 +228,48 @@ check("empty draft can't be finalized -> 400", await (async () => {
 check("delete exam -> 204, then 404",
   (await call("DELETE", `/exams/${hard.data.id}`, { token: A.token })).status === 204 && (await call("GET", `/exams/${hard.data.id}`, { token: A.token })).status === 404);
 
+// --- AI question generation (runs only in fake mode, so the test never spends money) ---
+const aiState = await call("GET", "/questions/generate/status", { token: A.token });
+check("AI status endpoint", aiState.status === 200 && ["fake", "live", "off"].includes(aiState.data.mode), aiState.data);
+if (aiState.data.mode !== "fake") {
+  console.log(`SKIP  AI generation checks (AI mode is "${aiState.data.mode}"; set AI_FAKE=true to run them)`);
+} else {
+  const genBody = { curriculumId: E.id, chapterId: e1.id, count: 3, difficulty: 3, kind: "mixed" };
+  const mineBefore = (await call("GET", "/questions?mine=true&pageSize=1", { token: A.token })).data.total;
+  const gen1 = await call("POST", "/questions/generate", { token: A.token, body: genBody });
+  check("generate returns drafts", gen1.status === 200 && gen1.data.drafts.length === 3 && gen1.data.generationId, gen1.data);
+  check("generating saves no questions", (await call("GET", "/questions?mine=true&pageSize=1", { token: A.token })).data.total === mineBefore);
+  check("drafts follow the question rules", gen1.data.drafts.every((d) => d.difficulty >= 1 && d.difficulty <= 5 && (!d.options || d.options.includes(d.answer))));
+  const bad = await call("POST", "/questions/generate", { token: A.token, body: { ...genBody, count: 1, focus: "__invalid__" } });
+  check("invalid AI drafts are dropped with a note", bad.status === 200 && bad.data.drafts.length === 1 && bad.data.notes.some((n) => n.includes("dropped")), bad.data);
+  check("count over 10 -> 400", (await call("POST", "/questions/generate", { token: A.token, body: { ...genBody, count: 11 } })).status === 400);
+  check("chapter from another course -> 400", (await call("POST", "/questions/generate", { token: A.token, body: { ...genBody, chapterId: ch.data.id } })).status === 400);
+  check("no token generate -> 401", (await call("POST", "/questions/generate", { body: genBody })).status === 401);
+
+  const keep = gen1.data.drafts.slice(0, 2).map(({ explanation, ...d }) => d);
+  keep[0].content = keep[0].content + " (edited)";
+  check("another instructor can't submit my drafts -> 404",
+    (await call("POST", "/questions/generate/submit", { token: B.token, body: { generationId: gen1.data.generationId, visibility: "SHARED", questions: keep } })).status === 404);
+  const mcqBad = gen1.data.drafts.find((d) => d.options);
+  if (mcqBad) {
+    const { explanation, ...m } = mcqBad;
+    check("submit MCQ whose answer isn't an option -> 400",
+      (await call("POST", "/questions/generate/submit", { token: A.token, body: { generationId: gen1.data.generationId, visibility: "SHARED", questions: [{ ...m, answer: "nope" }] } })).status === 400);
+  }
+  const sub = await call("POST", "/questions/generate/submit", { token: A.token, body: { generationId: gen1.data.generationId, visibility: "SHARED", questions: keep } });
+  check("submit kept drafts -> 201, PENDING and labelled AI", sub.status === 201 && sub.data.items.length === 2 && sub.data.items.every((q) => q.status === "PENDING" && q.source === "AI" && q.visibility === "SHARED"), sub.data);
+  const saved = (await call("GET", `/questions/${sub.data.items[0].id}`, { token: A.token })).data;
+  check("submitted draft keeps the instructor's edits", saved.content.endsWith("(edited)") && saved.chapter.id === e1.id);
+  check("can't submit more drafts than were generated -> 409",
+    (await call("POST", "/questions/generate/submit", { token: A.token, body: { generationId: gen1.data.generationId, visibility: "SHARED", questions: keep } })).status === 409);
+  check("AI question goes to a colleague's review queue",
+    (await call("GET", "/questions/review?pageSize=100", { token: B.token })).data.items.some((q) => q.id === saved.id));
+  check("author can't approve their own shared AI question -> 403", (await call("POST", `/questions/${saved.id}/approve`, { token: A.token })).status === 403);
+  check("colleague approves the AI question", (await call("POST", `/questions/${saved.id}/approve`, { token: B.token })).status === 200);
+  check("DB rejects a generation link on a non-AI question",
+    sqlError(`UPDATE questions SET source = 'MANUAL' WHERE id = '${saved.id}'`).includes("questions_ai_generation_is_ai"));
+}
+
 // --- step 3: malformed input ---
 check("malformed JSON -> 400", (await call("POST", "/questions", { token: A.token, rawBody: "{not json" })).status === 400);
 check("empty body on create -> 400", (await call("POST", "/curricula", { token: A.token, rawBody: "" })).status === 400);

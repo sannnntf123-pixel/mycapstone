@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
+import { PostModeSwitch } from "../../../_components/PostModeSwitch";
 import { useSession } from "@/lib/client/session";
 import { describeError, type Curriculum, type Question } from "@/lib/client/types";
 import {
@@ -127,6 +128,7 @@ export default function NewQuestionPage() {
           <h1 className={s.pageTitle}>Post a question</h1>
           <p className={s.subtitle}>Every new question is reviewed before it enters the question bank.</p>
         </div>
+        <PostModeSwitch active="manual" />
       </div>
 
       <div className={s.wizard}>
