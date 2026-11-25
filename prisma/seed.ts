@@ -20,23 +20,23 @@ const instructors = {
   lina: {
     email: "lina.nasser@example.com", name: "Dr. Lina Nasser",
     major: "MATHEMATICS", degree: "DOCTORATE", university: "American University of Beirut",
-    courses: ["Calculus I", "Linear Algebra"],
+    courses: ["Mathematics 101"],
   },
   omar: {
     email: "omar.khalil@example.com", name: "Dr. Omar Khalil",
     major: "COMPUTER_SCIENCE", degree: "DOCTORATE", university: "Lebanese University",
-    courses: ["Introduction to Programming", "Data Structures"],
+    courses: ["Introduction to Programming"],
   },
   sara: {
     email: "sara.haddad@example.com", name: "Dr. Sara Haddad",
     major: "MATHEMATICS", degree: "MASTER", university: "Beirut Arab University",
-    courses: ["Mathematics 101", "Statistics"],
+    courses: ["Mathematics 101"],
   },
   // A second Computer Science instructor, so Omar's shared questions have a same-major reviewer.
   rami: {
     email: "rami.saad@example.com", name: "Dr. Rami Saad",
     major: "COMPUTER_SCIENCE", degree: "DOCTORATE", university: "Lebanese American University",
-    courses: ["Data Structures", "Algorithms"],
+    courses: ["Introduction to Programming"],
   },
 } as const;
 type Who = keyof typeof instructors;

@@ -58,6 +58,15 @@ check("register with wrong invite code -> 403", badCode.status === 403, badCode)
 const sneaky = await reg("sneaky", { role: "STUDENT" });
 check("client-supplied role is ignored; account is INSTRUCTOR", sneaky.status === 201 && sneaky.data.user.role === "INSTRUCTOR", sneaky);
 
+// Courses at sign-up: existing ones are matched (ignoring case); new ones are created right away.
+const names = await call("GET", "/curricula/names");
+check("course names are public for the sign-up form", names.status === 200 && Array.isArray(names.data.items));
+const newCourse = `Quantum Computing ${run}`;
+check("sign-up with a new course -> 201", (await reg("newcourse", { courses: [newCourse] })).status === 201);
+check("…and the course now exists", (await call("GET", "/curricula/names")).data.items.includes(newCourse));
+check("sign-up with the same course in other capitals -> 201", (await reg("samecourse", { courses: [newCourse.toUpperCase()] })).status === 201);
+check("…links to it instead of making a duplicate", (await call("GET", "/curricula/names")).data.items.filter((n) => n.toLowerCase() === newCourse.toLowerCase()).length === 1);
+
 const A = (await reg("alice")).data;
 const B = (await reg("bob")).data;
 check("register two instructors", A.token && B.token && A.user.role === "INSTRUCTOR");

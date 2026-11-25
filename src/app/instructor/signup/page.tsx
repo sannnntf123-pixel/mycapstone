@@ -58,6 +58,9 @@ export default function SignupPage() {
   });
   const [courses, setCourses] = useState<string[]>([]);
   const [courseDraft, setCourseDraft] = useState("");
+  // Existing courses in the bank, suggested while typing. A name that isn't here becomes a new course.
+  const [known, setKnown] = useState<string[]>([]);
+  const [courseFocus, setCourseFocus] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -65,14 +68,26 @@ export default function SignupPage() {
     if (ready && user) router.replace("/instructor");
   }, [ready, user, router]);
 
+  useEffect(() => {
+    api<{ items: string[] }>("GET", "/curricula/names").then((r) => r.ok && setKnown(r.data.items));
+  }, [api]);
+
+  const canonical = (name: string) => known.find((k) => k.toLowerCase() === name.toLowerCase()) ?? name;
+  const isNew = (name: string) => !known.some((k) => k.toLowerCase() === name.toLowerCase());
+  const draft = courseDraft.trim();
+  const suggestions = known
+    .filter((k) => !courses.some((c) => c.toLowerCase() === k.toLowerCase()))
+    .filter((k) => !draft || k.toLowerCase().includes(draft.toLowerCase()))
+    .slice(0, 6);
+
   const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm({ ...form, [k]: e.target.value });
   const mismatch = form.confirm !== "" && form.confirm !== form.password;
   const level = passwordLevel(form.password);
 
-  // Adds whatever is typed in the course box; returns the updated list.
-  function addCourse(): string[] {
-    const name = courseDraft.trim();
+  // Adds a course (or whatever is typed in the box); returns the updated list.
+  function addCourse(picked?: string): string[] {
+    const name = canonical((picked ?? courseDraft).trim());
     if (!name) return courses;
     setCourseDraft("");
     if (courses.length >= MAX_COURSES || courses.some((c) => c.toLowerCase() === name.toLowerCase())) return courses;
@@ -222,7 +237,14 @@ export default function SignupPage() {
             <label className={s.label} htmlFor="major">
               Major
             </label>
-            <select id="major" className={s.select} value={form.major} onChange={set("major")} aria-describedby="major-help" required>
+            <select
+              id="major"
+              className={s.select}
+              value={form.major}
+              onChange={set("major")}
+              aria-describedby="major-help"
+              required
+            >
               <option value="" disabled>
                 Choose your major
               </option>
@@ -282,29 +304,68 @@ export default function SignupPage() {
             <input
               id="course"
               className={s.input}
-              placeholder="Type a course and press Enter"
+              placeholder="Search courses, or type a new one"
               maxLength={100}
               value={courseDraft}
               onChange={(e) => setCourseDraft(e.target.value)}
               onKeyDown={onCourseKey}
+              onFocus={() => setCourseFocus(true)}
+              onBlur={() => setTimeout(() => setCourseFocus(false), 150)}
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={courseFocus && (suggestions.length > 0 || (!!draft && isNew(draft)))}
+              aria-controls="course-suggestions"
               disabled={courses.length >= MAX_COURSES}
               aria-describedby="course-help"
             />
             <button
               type="button"
               className={`${s.button} ${s.ghost}`}
-              onClick={addCourse}
+              onClick={() => addCourse()}
               disabled={!courseDraft.trim() || courses.length >= MAX_COURSES}
             >
               <Icon name="plus" size={16} />
               Add
             </button>
           </div>
+          {courseFocus && courses.length < MAX_COURSES && (suggestions.length > 0 || (draft && isNew(draft))) && (
+            <ul id="course-suggestions" className={s.suggestions} role="listbox" aria-label="Course suggestions">
+              {suggestions.map((k) => (
+                <li key={k}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => addCourse(k)}
+                  >
+                    <Icon name="book" size={16} />
+                    {k}
+                  </button>
+                </li>
+              ))}
+              {draft && isNew(draft) && (
+                <li>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => addCourse()}
+                  >
+                    <Icon name="plus" size={16} />
+                    Add &ldquo;{draft}&rdquo; as a new course
+                  </button>
+                </li>
+              )}
+            </ul>
+          )}
           {courses.length > 0 ? (
             <ul className={s.courseChips} aria-label="Courses added">
               {courses.map((c) => (
                 <li key={c} className={s.courseChip}>
                   {c}
+                  {isNew(c) && <span className={s.newTag}>new</span>}
                   <button type="button" aria-label={`Remove ${c}`} onClick={() => setCourses(courses.filter((x) => x !== c))}>
                     <Icon name="x" size={14} />
                   </button>
@@ -313,7 +374,7 @@ export default function SignupPage() {
             </ul>
           ) : (
             <div id="course-help" className={s.hint}>
-              Add at least one, for example &ldquo;Calculus I&rdquo;.
+              Pick from the existing courses, or type a new one: it&apos;s created when your account is.
             </div>
           )}
         </div>
