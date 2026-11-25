@@ -3,8 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Migrations need a direct (unpooled) connection: connection poolers such as Neon's
+  // don't reliably support the advisory lock prisma migrate takes. Locally both
+  // variables point at the same Docker database.
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 // Instructor-only for now; kept as an enum so further roles can be added by migration.
