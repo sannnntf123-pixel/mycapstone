@@ -126,7 +126,7 @@ export async function getVisibleQuestion(user: SessionUser, id: string) {
 async function review(
   user: SessionUser,
   id: string,
-  decision: { status: "APPROVED" } | { status: "REJECTED"; reason: string },
+  decision: { status: "APPROVED"; changes?: ApprovalChanges } | { status: "REJECTED"; reason: string },
 ) {
   const question = await getVisibleQuestion(user, id);
   if (question.status !== "PENDING") {
@@ -138,7 +138,17 @@ async function review(
   // Conditional update guards against two instructors reviewing at the same moment.
   const data: Prisma.QuestionUncheckedUpdateManyInput =
     decision.status === "APPROVED"
-      ? { status: "APPROVED", approvedById: user.id, approvedAt: new Date(), rejectionReason: null }
+      ? {
+          status: "APPROVED",
+          approvedById: user.id,
+          approvedAt: new Date(),
+          rejectionReason: null,
+          // The reviewer may correct the difficulty or solving time as they approve.
+          ...(decision.changes?.difficulty !== undefined ? { difficulty: decision.changes.difficulty } : {}),
+          ...(decision.changes?.estimatedTimeMinutes !== undefined
+            ? { estimatedTimeMinutes: decision.changes.estimatedTimeMinutes }
+            : {}),
+        }
       : { status: "REJECTED", rejectedById: user.id, rejectedAt: new Date(), rejectionReason: decision.reason };
 
   const result = await prisma.question.updateMany({ where: { id, status: "PENDING" }, data });
@@ -147,8 +157,10 @@ async function review(
   return getVisibleQuestion(user, id);
 }
 
-export const approveQuestion = (user: SessionUser, id: string) =>
-  review(user, id, { status: "APPROVED" });
+export type ApprovalChanges = { difficulty?: number; estimatedTimeMinutes?: number };
+
+export const approveQuestion = (user: SessionUser, id: string, changes?: ApprovalChanges) =>
+  review(user, id, { status: "APPROVED", changes });
 
 export const rejectQuestion = (user: SessionUser, id: string, reason: string) =>
   review(user, id, { status: "REJECTED", reason });

@@ -67,7 +67,8 @@ export default function ReviewPage() {
         <div>
           <h1 className={s.pageTitle}>Review questions</h1>
           <p className={s.subtitle}>
-            Nothing enters the question bank until it&apos;s approved. You review shared questions from other instructors in your major
+            Nothing enters the question bank until it&apos;s approved. You review shared questions from other instructors in your
+            major
             {queue?.major ? ` (${majorLabel(queue.major)})` : ""}, your own private questions, and the AI questions you generated.
           </p>
         </div>
@@ -130,7 +131,11 @@ export default function ReviewPage() {
                   <Icon name="chevronLeft" size={16} />
                   Previous
                 </button>
-                <button className={`${s.button} ${s.quiet} ${s.small}`} onClick={() => setPage(page + 1)} disabled={page >= pages}>
+                <button
+                  className={`${s.button} ${s.quiet} ${s.small}`}
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= pages}
+                >
                   Next
                   <Icon name="chevronRight" size={16} />
                 </button>
@@ -156,15 +161,34 @@ function ReviewCard({ q, mine, onDone }: { q: Question; mine: boolean; onDone: (
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // The reviewer can correct difficulty and solving time before approving.
+  const [difficulty, setDifficulty] = useState(q.difficulty);
+  const [minutes, setMinutes] = useState(String(q.estimatedTimeMinutes));
+  const minutesNum = Number(minutes);
+  const minutesValid = Number.isInteger(minutesNum) && minutesNum >= 1 && minutesNum <= 600;
+  const changes = {
+    ...(difficulty !== q.difficulty ? { difficulty } : {}),
+    ...(minutesValid && minutesNum !== q.estimatedTimeMinutes ? { estimatedTimeMinutes: minutesNum } : {}),
+  };
+  const changed = Object.keys(changes).length > 0;
 
   async function decide(action: "approve" | "reject") {
     if (action === "reject" && !reason.trim()) return setError("Tell the author why, so they can fix it.");
+    if (action === "approve" && !minutesValid) return setError("Solving time must be 1–600 minutes.");
     setBusy(true);
     setError("");
-    const res = await api<Question>("POST", `/questions/${q.id}/${action}`, action === "reject" ? { body: { reason: reason.trim() } } : undefined);
+    const body = action === "reject" ? { reason: reason.trim() } : changed ? changes : undefined;
+    const res = await api<Question>("POST", `/questions/${q.id}/${action}`, body ? { body } : undefined);
     setBusy(false);
     if (res.ok) {
-      onDone(q, action === "approve" ? "Approved. It's now in the question bank." : "Rejected. The author will see your reason.");
+      onDone(
+        q,
+        action === "reject"
+          ? "Rejected. The author will see your reason."
+          : changed
+            ? "Approved with your changes. It's now in the question bank."
+            : "Approved. It's now in the question bank.",
+      );
     } else if (res.status === 409) {
       onDone(q, "Someone else already reviewed this question.");
     } else setError(describeError(res.data, res.status));
@@ -212,19 +236,61 @@ function ReviewCard({ q, mine, onDone }: { q: Question; mine: boolean; onDone: (
           </div>
         )}
 
-        <div className={s.questionMeta}>
-          <span className={s.metaItem} title={`Difficulty ${q.difficulty} of 5`}>
-            <span className={s.dots} aria-hidden>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <i key={n} data-on={n <= q.difficulty ? "" : undefined} />
+        <div className={s.adjustRow}>
+          <label className={s.adjustField}>
+            <span>Difficulty</span>
+            <select
+              className={s.select}
+              value={difficulty}
+              onChange={(e) => setDifficulty(Number(e.target.value))}
+              aria-label="Difficulty"
+              disabled={busy}
+            >
+              {DIFFICULTY_LABELS.map((l, k) => (
+                <option key={l} value={k + 1}>
+                  {k + 1} · {l}
+                </option>
               ))}
+            </select>
+          </label>
+          <label className={s.adjustField}>
+            <span>Solving time</span>
+            <span className={s.minutesField}>
+              <input
+                className={s.input}
+                type="number"
+                min={1}
+                max={600}
+                inputMode="numeric"
+                value={minutes}
+                onChange={(e) => setMinutes(e.target.value)}
+                aria-label="Solving time in minutes"
+                aria-invalid={!minutesValid}
+                disabled={busy}
+              />
+              <span className={s.optional}>min</span>
             </span>
-            {DIFFICULTY_LABELS[q.difficulty - 1]}
-          </span>
-          <span className={s.metaItem}>
-            <Icon name="clock" size={14} />
-            {q.estimatedTimeMinutes} min
-          </span>
+          </label>
+          {changed ? (
+            <span className={s.adjustNote}>
+              <Icon name="pencil" size={14} />
+              Changed from {DIFFICULTY_LABELS[q.difficulty - 1]}, {q.estimatedTimeMinutes} min.{" "}
+              <button
+                type="button"
+                className={s.linkButton}
+                onClick={() => {
+                  setDifficulty(q.difficulty);
+                  setMinutes(String(q.estimatedTimeMinutes));
+                }}
+              >
+                Undo
+              </button>
+            </span>
+          ) : (
+            <span className={s.adjustNote} style={{ color: "var(--muted)" }}>
+              Adjust these before approving if needed.
+            </span>
+          )}
         </div>
       </div>
 
@@ -307,7 +373,7 @@ function ReviewCard({ q, mine, onDone }: { q: Question; mine: boolean; onDone: (
               </button>
               <button className={s.button} onClick={() => decide("approve")} disabled={busy}>
                 <Icon name="check" size={16} />
-                {busy ? "Approving…" : "Approve"}
+                {busy ? "Approving…" : changed ? "Approve with changes" : "Approve"}
               </button>
             </>
           )}

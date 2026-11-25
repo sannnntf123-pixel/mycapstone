@@ -49,6 +49,12 @@ export const createQuestionSchema = z.object({
   visibility: z.enum(["PRIVATE", "SHARED"]).default("PRIVATE"),
 });
 
+// Optional corrections a reviewer makes while approving.
+export const approveQuestionSchema = z.object({
+  difficulty: z.number().int().min(1).max(5).optional(),
+  estimatedTimeMinutes: z.number().int().min(1).max(600).optional(),
+});
+
 export const rejectQuestionSchema = z.object({
   reason: z.string({ required_error: "A rejection reason is required" }).trim().min(1, "A rejection reason is required"),
 });

@@ -2773,3 +2773,45 @@
   background: var(--accent);
   color: var(--accent-ink);
 }
+
+/* review: adjust difficulty / time before approving */
+.adjustRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.adjustField {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.adjustField .select {
+  min-width: 170px;
+  min-height: 38px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.adjustField .input {
+  max-width: 90px;
+  min-height: 38px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.adjustNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--accent);
+  padding-bottom: 10px;
+}

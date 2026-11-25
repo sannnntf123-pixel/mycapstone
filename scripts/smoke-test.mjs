@@ -150,6 +150,13 @@ check("different major can't approve a shared question -> 403", chemTry.status =
 check("different major can't reject it either -> 403", (await call("POST", `/questions/${aShared.id}/reject`, { token: Chem.token, body: { reason: "x" } })).status === 403);
 const chemQueue = (await call("GET", "/questions/review?pageSize=100", { token: Chem.token })).data;
 check("review queue hides other majors' shared questions", chemQueue.major === "CHEMISTRY" && !chemQueue.items.some((q) => q.id === aShared.id || q.id === bShared.id), chemQueue.major);
+// A reviewer can correct difficulty and solving time while approving.
+const toAdjust = await mk(A.token, { visibility: "SHARED" });
+check("approve with an invalid difficulty -> 400",
+  (await call("POST", `/questions/${toAdjust.id}/approve`, { token: B.token, body: { difficulty: 9 } })).status === 400);
+const adjusted = await call("POST", `/questions/${toAdjust.id}/approve`, { token: B.token, body: { difficulty: 5, estimatedTimeMinutes: 12 } });
+check("approve with changed difficulty and time saves them", adjusted.status === 200 && adjusted.data.status === "APPROVED" &&
+  adjusted.data.difficulty === 5 && adjusted.data.estimatedTimeMinutes === 12, adjusted.data);
 check("author can't approve their own shared question -> 403", (await call("POST", `/questions/${aShared.id}/approve`, { token: A.token })).status === 403);
 check("author can't reject their own shared question -> 403", (await call("POST", `/questions/${aShared.id}/reject`, { token: A.token, body: { reason: "x" } })).status === 403);
 const queue = (await call("GET", "/questions/review?pageSize=100", { token: A.token })).data;
