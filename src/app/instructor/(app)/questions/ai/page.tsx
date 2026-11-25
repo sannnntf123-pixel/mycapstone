@@ -171,17 +171,13 @@ export default function GenerateWithAiPage() {
           <Icon name="checkCircle" size={18} />
           <span>
             {submitted.count} question{submitted.count === 1 ? "" : "s"} submitted for review.{" "}
-            {submitted.visibility === "SHARED" ? (
-              `Another instructor will review ${submitted.count === 1 ? "it" : "them"}.`
-            ) : (
-              <>
-                {submitted.count === 1 ? "It's private, so you review it" : "They're private, so you review them"} yourself on the{" "}
-                <Link href="/instructor/review" className={s.linkButton}>
-                  Review page
-                </Link>
-                .
-              </>
-            )}
+            {submitted.visibility === "SHARED"
+              ? "As AI questions you generated, you can approve them yourself, or a colleague in your major can, on the "
+              : `${submitted.count === 1 ? "It's private, so you review it" : "They're private, so you review them"} yourself on the `}
+            <Link href="/instructor/review" className={s.linkButton}>
+              Review page
+            </Link>
+            .
           </span>
         </div>
       )}
@@ -351,6 +347,42 @@ export default function GenerateWithAiPage() {
           </div>
         </section>
 
+        <section className={s.formBlock}>
+          <div className={s.blockHead}>
+            <h2 className={s.sectionTitle}>
+              <span className={s.formSectionNum}>3</span>Who can see them?
+            </h2>
+          </div>
+          <div className={s.choices}>
+            {(
+              [
+                ["PRIVATE", "Private", "Only you can see and use these questions. You approve them yourself on the Review page.", "lock"],
+                [
+                  "SHARED",
+                  "Shared",
+                  "All instructors can see and use them once approved, by you or by a colleague in your major.",
+                  "users",
+                ],
+              ] as const
+            ).map(([value, title, meta, icon]) => (
+              <button
+                key={value}
+                type="button"
+                className={`${s.choice} ${visibility === value ? s.choiceSelected : ""}`}
+                aria-pressed={visibility === value}
+                onClick={() => setVisibility(value)}
+              >
+                <span className={s.choiceIcon}>
+                  <Icon name={icon} size={18} />
+                </span>
+                <span className={s.choiceTitle}>{title}</span>
+                <span className={s.choiceMeta}>{meta}</span>
+              </button>
+            ))}
+          </div>
+          <p className={s.hint}>You can still change this before you submit the drafts, and later from your dashboard.</p>
+        </section>
+
         {error && !generation && (
           <div className={s.error} role="alert" style={{ marginTop: 20 }}>
             <Icon name="alert" size={18} />
@@ -443,7 +475,7 @@ export default function GenerateWithAiPage() {
                     onChange={(e) => setVisibility(e.target.value as "PRIVATE" | "SHARED")}
                     aria-label="Visibility of the submitted questions"
                   >
-                    <option value="SHARED">Shared (a colleague in your major reviews)</option>
+                    <option value="SHARED">Shared (you or a colleague in your major approves)</option>
                     <option value="PRIVATE">Private (you review)</option>
                   </select>
                 </span>

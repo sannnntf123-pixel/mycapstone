@@ -281,8 +281,13 @@ if (aiState.data.mode !== "fake") {
     (await call("POST", "/questions/generate/submit", { token: A.token, body: { generationId: gen1.data.generationId, visibility: "SHARED", questions: keep } })).status === 409);
   check("AI question goes to a colleague's review queue",
     (await call("GET", "/questions/review?pageSize=100", { token: B.token })).data.items.some((q) => q.id === saved.id));
-  check("author can't approve their own shared AI question -> 403", (await call("POST", `/questions/${saved.id}/approve`, { token: A.token })).status === 403);
-  check("colleague approves the AI question", (await call("POST", `/questions/${saved.id}/approve`, { token: B.token })).status === 200);
+  check("AI question is also in its generator's own review queue",
+    (await call("GET", "/questions/review?pageSize=100", { token: A.token })).data.items.some((q) => q.id === saved.id));
+  const selfAi = await call("POST", `/questions/${saved.id}/approve`, { token: A.token });
+  check("generator approves their own shared AI question", selfAi.status === 200 && selfAi.data.approvedBy?.id === A.user.id, selfAi.data);
+  check("…and it stays shared and approved", selfAi.data.visibility === "SHARED" && selfAi.data.status === "APPROVED");
+  check("a same-major colleague can still approve the other AI question",
+    (await call("POST", `/questions/${sub.data.items[1].id}/approve`, { token: B.token })).status === 200);
   check("DB rejects a generation link on a non-AI question",
     sqlError(`UPDATE questions SET source = 'MANUAL' WHERE id = '${saved.id}'`).includes("questions_ai_generation_is_ai"));
 }

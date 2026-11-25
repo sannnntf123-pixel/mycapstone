@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke-test.mjs",
     "db:seed": "prisma db seed",
+    "db:seed-bank": "tsx prisma/seed-bank.ts",
     "check:seed": "node --env-file=.env scripts/check-seed.mjs",
     "postinstall": "prisma generate"
   },

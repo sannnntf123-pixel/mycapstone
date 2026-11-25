@@ -15,10 +15,14 @@ export function visibleToInstructor(userId: string): Prisma.QuestionWhereInput {
 // Who may approve or reject a pending question:
 // - shared questions are peer-reviewed by another instructor WITH THE SAME MAJOR as the
 //   author (a chemist doesn't judge a computer-science question);
-// - private questions are visible only to their author, so the author reviews them.
-type ReviewTarget = { createdById: string; visibility: string; createdBy: { major: Major | null } };
+// - private questions are visible only to their author, so the author reviews them;
+// - AI-generated questions may also be approved by the instructor who generated them,
+//   shared or not (they act as the reviewer of the AI's draft); colleagues in the same
+//   major can still review them too.
+type ReviewTarget = { createdById: string; visibility: string; source: string; createdBy: { major: Major | null } };
 
 export function reviewProblem(user: SessionUser, reviewerMajor: Major | null, q: ReviewTarget): string | null {
+  if (q.source === "AI" && q.createdById === user.id) return null;
   if (q.visibility === "PRIVATE") return q.createdById === user.id ? null : "Only the author can review a private question";
   if (q.createdById === user.id) return "Shared questions must be reviewed by another instructor";
   if (!reviewerMajor) return "Add your major to your profile before reviewing shared questions";
@@ -38,6 +42,8 @@ export function reviewQueueWhere(user: SessionUser, major: Major | null): Prisma
     status: "PENDING",
     OR: [
       { createdById: user.id, visibility: "PRIVATE" },
+      // AI drafts the instructor generated and shared: they can approve those themselves.
+      { createdById: user.id, visibility: "SHARED", source: "AI" },
       ...(major ? [{ createdById: { not: user.id }, visibility: "SHARED" as const, createdBy: { major } }] : []),
     ],
   };
@@ -174,8 +180,9 @@ export async function setVisibility(user: SessionUser, id: string, visibility: "
   if (question.createdById !== user.id) throw forbidden("Only the author can change who sees a question");
   if (question.visibility === visibility) return question;
 
+  // (AI questions are exempt: their generating instructor may approve them even when shared.)
   const needsPeerReview =
-    visibility === "SHARED" && question.status === "APPROVED" && question.approvedById === user.id;
+    visibility === "SHARED" && question.status === "APPROVED" && question.approvedById === user.id && question.source !== "AI";
   await prisma.question.update({
     where: { id },
     data: needsPeerReview

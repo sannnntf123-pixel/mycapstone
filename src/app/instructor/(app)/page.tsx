@@ -64,7 +64,7 @@ export default function DashboardPage() {
 
   async function toggleVisibility(q: Question) {
     const visibility = q.visibility === "SHARED" ? "PRIVATE" : "SHARED";
-    const backToReview = visibility === "SHARED" && q.status === "APPROVED" && q.approvedBy?.id === user?.id;
+    const backToReview = visibility === "SHARED" && q.status === "APPROVED" && q.approvedBy?.id === user?.id && q.source !== "AI";
     if (
       backToReview &&
       !confirm("You approved this question yourself. Sharing it sends it back for review by another instructor in your major. Continue?")

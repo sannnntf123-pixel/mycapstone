@@ -68,7 +68,7 @@ export default function ReviewPage() {
           <h1 className={s.pageTitle}>Review questions</h1>
           <p className={s.subtitle}>
             Nothing enters the question bank until it&apos;s approved. You review shared questions from other instructors in your major
-            {queue?.major ? ` (${majorLabel(queue.major)})` : ""}, and your own private questions.
+            {queue?.major ? ` (${majorLabel(queue.major)})` : ""}, your own private questions, and the AI questions you generated.
           </p>
         </div>
       </div>
